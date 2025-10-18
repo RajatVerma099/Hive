@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  displayName String?
+  googleId    String?  @unique
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  conversations     ConversationParticipant[]
+  messages          Message[]
+  savedMessages     Notebook[]
+  createdConversations Conversation[] @relation("ConversationCreator")
+  createdFades      Fade[] @relation("FadeCreator")
+
+  @@map("users")
+}
+
+model Conversation {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  topics            String[] // Array of topic strings
+  visibility        Visibility @default(PUBLIC)
+  defaultMute       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  creatorId         String
+  isActive          Boolean  @default(true)
+
+  // Relations
+  creator           User @relation("ConversationCreator", fields: [creatorId], references: [id])
+  participants      ConversationParticipant[]
+  messages          Message[]
+  pinnedMessages    Message[] @relation("PinnedInConversation")
+
+  @@map("conversations")
+}
+
+model Fade {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  topics            String[]
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  creatorId         String
+  isActive          Boolean  @default(true)
+  convertedToConversation Boolean @default(false)
+
+  // Relations
+  creator           User @relation("FadeCreator", fields: [creatorId], references: [id])
+  participants      FadeParticipant[]
+  messages          FadeMessage[]
+
+  @@map("fades")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(CONVERSER)
+  joinedAt       DateTime @default(now())
+  isMuted        Boolean  @default(false)
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model FadeParticipant {
+  id        String   @id @default(cuid())
+  fadeId    String
+  userId    String
+  role      ParticipantRole @default(CONVERSER)
+  joinedAt  DateTime @default(now())
+  isMuted   Boolean  @default(false)
+
+  // Relations
+  fade      Fade @relation(fields: [fadeId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([fadeId, userId])
+  @@map("fade_participants")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  conversationId String
+  userId         String
+  isPinned       Boolean  @default(false)
+  pinnedAt       DateTime?
+  pinnedBy       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  replyToId      String?
+  language       String?  // Detected language
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo        Message? @relation("MessageReply", fields: [replyToId], references: [id])
+  replies        Message[] @relation("MessageReply")
+  pinnedInConversation Conversation? @relation("PinnedInConversation", fields: [conversationId], references: [id])
+  savedBy        Notebook[]
+
+  @@map("messages")
+}
+
+model FadeMessage {
+  id        String   @id @default(cuid())
+  content   String
+  fadeId    String
+  userId    String
+  isPinned  Boolean  @default(false)
+  pinnedAt  DateTime?
+  pinnedBy  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  replyToId String?
+  language  String?
+
+  // Relations
+  fade      Fade @relation(fields: [fadeId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo   FadeMessage? @relation("FadeMessageReply", fields: [replyToId], references: [id])
+  replies   FadeMessage[] @relation("FadeMessageReply")
+
+  @@map("fade_messages")
+}
+
+model Notebook {
+  id        String   @id @default(cuid())
+  userId    String
+  messageId String
+  title     String?  // User can give a custom title
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@map("notebooks")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum ParticipantRole {
+  HOST
+  CONVERSER
+  SPECTATOR
+}
