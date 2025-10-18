@@ -12,13 +12,13 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_LOCAL_URL,
     methods: ["GET", "POST"]
   }
 });
 
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.BACKEND_LOCAL_PORT;
 
 // Middleware
 app.use(cors());
@@ -26,7 +26,7 @@ app.use(express.json());
 
 // Routes
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Vently Backend is running!' });
+  res.json({ status: 'OK', message: 'Hive Backend is running!' });
 });
 
 // Socket.io connection handling
@@ -119,7 +119,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`🚀 Vently Backend running on port ${PORT}`);
+  console.log(`🚀 Hive Backend running on port ${PORT}`);
   console.log(`📡 Socket.io server ready for real-time connections`);
 });
 

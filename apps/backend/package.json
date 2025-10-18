@@ -1,7 +1,7 @@
 {
-  "name": "vently-backend",
+  "name": "hive-backend",
   "version": "1.0.0",
-  "description": "Backend for Vently - Conversation Platform",
+  "description": "Backend for Hive - Conversation Platform",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
