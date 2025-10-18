@@ -12,10 +12,12 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+    const token = localStorage.getItem('token');
     
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -25,7 +27,8 @@ class ApiService {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
       }
       
       return await response.json();
@@ -40,11 +43,32 @@ class ApiService {
     return this.request('/health');
   }
 
-  // User endpoints (to be implemented)
-  async getCurrentUser() {
-    return this.request('/api/user/me');
+  // Authentication endpoints
+  async login(email: string, password: string) {
+    return this.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
   }
 
+  async signup(email: string, password: string, name: string, displayName?: string) {
+    return this.request('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name, displayName }),
+    });
+  }
+
+  async getCurrentUser() {
+    return this.request('/api/auth/me');
+  }
+
+  async logout() {
+    return this.request('/api/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  // User endpoints
   async updateUser(userId: string, data: any) {
     return this.request(`/api/user/${userId}`, {
       method: 'PUT',

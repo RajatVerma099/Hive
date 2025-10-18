@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { apiService } from '../services/api';
-import type { Notebook, Message } from '../types';
+import type { Message } from '../types';
 import { 
   Search, 
   BookOpen, 
   Star, 
   MessageCircle, 
-  Calendar,
-  Tag,
   Trash2,
   ExternalLink
 } from 'lucide-react';
@@ -26,7 +24,7 @@ export const NotebookTab: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const notebook = await apiService.getNotebook();
+        const notebook: any = await apiService.getNotebook();
         dispatch({ type: 'SET_NOTEBOOK', payload: notebook });
       } catch (error) {
         console.error('Error loading notebook:', error);
@@ -40,8 +38,14 @@ export const NotebookTab: React.FC = () => {
     loadNotebook();
   }, [dispatch]);
 
-  const handleRemoveFromNotebook = (notebookId: string) => {
-    dispatch({ type: 'REMOVE_FROM_NOTEBOOK', payload: notebookId });
+  const handleRemoveFromNotebook = async (notebookId: string) => {
+    try {
+      await apiService.removeFromNotebook(notebookId);
+      dispatch({ type: 'REMOVE_FROM_NOTEBOOK', payload: notebookId });
+    } catch (error) {
+      console.error('Error removing from notebook:', error);
+      setError('Failed to remove from notebook');
+    }
   };
 
   const handleViewOriginal = (message: Message) => {
@@ -56,7 +60,7 @@ export const NotebookTab: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const notebook = await apiService.getNotebook();
+      const notebook: any = await apiService.getNotebook();
       dispatch({ type: 'SET_NOTEBOOK', payload: notebook });
     } catch (error) {
       console.error('Error refreshing notebook:', error);
@@ -68,12 +72,12 @@ export const NotebookTab: React.FC = () => {
 
   const filteredNotebook = state.notebook.filter(item => {
     const matchesQuery = item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        item.message?.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        item.message?.user?.name.toLowerCase().includes(searchQuery.toLowerCase());
+                        item.message?.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        item.message?.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesTags = selectedTags.length === 0 || 
                        selectedTags.some(tag => 
-                         item.message?.content.toLowerCase().includes(tag.toLowerCase())
+                         item.message?.content?.toLowerCase().includes(tag.toLowerCase())
                        );
     
     return matchesQuery && matchesTags;
@@ -83,7 +87,7 @@ export const NotebookTab: React.FC = () => {
   const allTags = Array.from(new Set(
     state.notebook.flatMap(item => 
       item.message?.content
-        .toLowerCase()
+        ?.toLowerCase()
         .match(/\b\w+\b/g) || []
     )
   )).slice(0, 20); // Limit to 20 most common tags
@@ -214,7 +218,7 @@ export const NotebookTab: React.FC = () => {
                 </div>
                 
                 <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                  <p className="text-gray-800">{item.message?.content}</p>
+                  <p className="text-gray-800">{item.message?.content || 'No content available'}</p>
                 </div>
                 
                 <div className="flex items-center justify-between">

@@ -1,5 +1,7 @@
 import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
+import { AuthWrapper } from './components/AuthWrapper';
 import { Layout } from './components/Layout';
 import { ChatsTab } from './components/ChatsTab';
 import { DiscoverTab } from './components/DiscoverTab';
@@ -33,9 +35,13 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AuthWrapper>
+          <AppContent />
+        </AuthWrapper>
+      </AppProvider>
+    </AuthProvider>
   );
 }
 

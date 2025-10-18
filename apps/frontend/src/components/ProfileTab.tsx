@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
 import { 
   User as UserIcon, 
@@ -18,6 +19,7 @@ import {
 
 export const ProfileTab: React.FC = () => {
   const { state, dispatch } = useApp();
+  const { logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: state.user?.name || '',
@@ -47,8 +49,7 @@ export const ProfileTab: React.FC = () => {
   };
 
   const handleLogout = () => {
-    dispatch({ type: 'SET_USER', payload: null });
-    // In a real app, you would also clear tokens, etc.
+    logout();
   };
 
   if (!state.user) {

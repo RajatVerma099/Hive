@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { AppState, User, Conversation, Fade, Notebook, TabType } from '../types';
 import { useSocket } from '../hooks/useSocket';
+import { useAuth } from './AuthContext';
 
 // Action types
 type AppAction =
@@ -30,6 +31,7 @@ const initialState: AppState = {
   notebook: [],
   isConnected: false,
   typingUsers: new Set(),
+  activeTab: 'chats',
 };
 
 // Reducer
@@ -101,6 +103,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       newTypingUsers.delete(action.payload);
       return { ...state, typingUsers: newTypingUsers };
     
+    case 'SET_ACTIVE_TAB':
+      return { ...state, activeTab: action.payload };
+    
     default:
       return state;
   }
@@ -119,8 +124,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Provider component
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const [activeTab, setActiveTab] = React.useState<TabType>('chats');
   const { isConnected, onEvent, offEvent } = useSocket();
+  const { user } = useAuth();
+
+  const setActiveTab = (tab: TabType) => {
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
+  };
 
   // Update connection status
   useEffect(() => {
@@ -159,22 +168,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [onEvent, offEvent]);
 
-  // Mock user for development
+  // Sync user from auth context
   useEffect(() => {
-    const mockUser: User = {
-      id: '1',
-      email: 'user@example.com',
-      name: 'John Doe',
-      displayName: 'John',
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    dispatch({ type: 'SET_USER', payload: mockUser });
-  }, []);
+    dispatch({ type: 'SET_USER', payload: user });
+  }, [user]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, activeTab, setActiveTab }}>
+    <AppContext.Provider value={{ state, dispatch, activeTab: state.activeTab, setActiveTab }}>
       {children}
     </AppContext.Provider>
   );

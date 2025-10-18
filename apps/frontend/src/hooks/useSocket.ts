@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from '../context/AuthContext';
 
 // Define SocketEvents locally to avoid import issues
 interface SocketEvents {
@@ -31,14 +32,23 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket<SocketEvents> | null>(null);
+  const { token, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Initialize socket connection
+    // Only connect if user is authenticated
+    if (!isAuthenticated || !token) {
+      return;
+    }
+
+    // Initialize socket connection with authentication
     socketRef.current = io(SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      auth: {
+        token: token
+      }
     });
 
     const socket = socketRef.current;
@@ -64,7 +74,7 @@ export const useSocket = () => {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [isAuthenticated, token]);
 
   const joinConversation = (conversationId: string) => {
     if (socketRef.current) {

@@ -152,6 +152,7 @@ export interface AppState {
   notebook: Notebook[];
   isConnected: boolean;
   typingUsers: Set<string>;
+  activeTab: TabType;
 }
 
 // Tab types
