@@ -69,6 +69,9 @@ export const DiscoverTab: React.FC = () => {
       // Set it as the current conversation
       dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
       
+      // Refresh discover data to update join status
+      await refreshData();
+      
       // Switch to Chats tab
       dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
     } catch (error) {
@@ -118,6 +121,9 @@ export const DiscoverTab: React.FC = () => {
       // Set it as the current conversation
       dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
       
+      // Refresh discover data to update join status
+      await refreshData();
+      
       // Switch to Chats tab
       dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
     } catch (error) {
@@ -136,7 +142,10 @@ export const DiscoverTab: React.FC = () => {
     const matchesTopics = searchFilters.topics.length === 0 || 
                          searchFilters.topics.some(topic => conv.topics.includes(topic));
     
-    return matchesQuery && matchesVisibility && matchesTopics;
+    // Filter out conversations the user has already joined
+    const notJoined = !conv.isJoined;
+    
+    return matchesQuery && matchesVisibility && matchesTopics && notJoined;
   });
 
   const filteredFades = state.discoverFades.filter(fade => {
@@ -147,7 +156,10 @@ export const DiscoverTab: React.FC = () => {
     const matchesTopics = searchFilters.topics.length === 0 || 
                          searchFilters.topics.some(topic => fade.topics.includes(topic));
     
-    return matchesQuery && matchesTopics;
+    // Filter out fades the user has already joined
+    const notJoined = !fade.isJoined;
+    
+    return matchesQuery && matchesTopics && notJoined;
   });
 
   const getTimeRemaining = (expiresAt: string) => {

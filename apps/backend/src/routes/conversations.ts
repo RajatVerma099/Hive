@@ -61,7 +61,13 @@ router.get('/public', authenticateToken, async (req: AuthenticatedRequest, res) 
       }
     });
 
-    res.json(conversations);
+    // Add isJoined field to each conversation
+    const conversationsWithJoinStatus = conversations.map(conversation => ({
+      ...conversation,
+      isJoined: conversation.participants.some(participant => participant.userId === req.user!.id)
+    }));
+
+    res.json(conversationsWithJoinStatus);
   } catch (error) {
     console.error('Error fetching public conversations:', error);
     res.status(500).json({ error: 'Internal server error' });

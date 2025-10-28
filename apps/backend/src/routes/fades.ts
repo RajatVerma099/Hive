@@ -47,7 +47,13 @@ router.get('/public', authenticateToken, async (req: AuthenticatedRequest, res) 
       }
     });
 
-    res.json(fades);
+    // Add isJoined field to each fade
+    const fadesWithJoinStatus = fades.map(fade => ({
+      ...fade,
+      isJoined: fade.participants.some(participant => participant.userId === req.user!.id)
+    }));
+
+    res.json(fadesWithJoinStatus);
   } catch (error) {
     console.error('Error fetching public fades:', error);
     res.status(500).json({ error: 'Internal server error' });

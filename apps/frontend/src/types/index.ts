@@ -22,6 +22,7 @@ export interface Conversation {
   updatedAt: string;
   creatorId: string;
   isActive: boolean;
+  isJoined?: boolean; // Added to track if current user has joined
   creator?: User;
   participants?: ConversationParticipant[];
   messages?: Message[];
@@ -40,6 +41,7 @@ export interface Fade {
   creatorId: string;
   isActive: boolean;
   convertedToConversation: boolean;
+  isJoined?: boolean; // Added to track if current user has joined
   creator?: User;
   participants?: FadeParticipant[];
   messages?: FadeMessage[];
