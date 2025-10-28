@@ -7,12 +7,14 @@ import { useAuth } from './AuthContext';
 type AppAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_CURRENT_CONVERSATION'; payload: Conversation | null }
-  | { type: 'SET_CONVERSATIONS'; payload: Conversation[] }
+  | { type: 'SET_CONVERSATIONS'; payload: Conversation[] } // User conversations
   | { type: 'ADD_CONVERSATION'; payload: Conversation }
   | { type: 'UPDATE_CONVERSATION'; payload: Conversation }
-  | { type: 'SET_FADES'; payload: Fade[] }
+  | { type: 'SET_FADES'; payload: Fade[] } // User fades
   | { type: 'ADD_FADE'; payload: Fade }
   | { type: 'UPDATE_FADE'; payload: Fade }
+  | { type: 'SET_DISCOVER_CONVERSATIONS'; payload: Conversation[] } // Discover conversations
+  | { type: 'SET_DISCOVER_FADES'; payload: Fade[] } // Discover fades
   | { type: 'SET_NOTEBOOK'; payload: Notebook[] }
   | { type: 'ADD_TO_NOTEBOOK'; payload: Notebook }
   | { type: 'REMOVE_FROM_NOTEBOOK'; payload: string }
@@ -26,8 +28,10 @@ type AppAction =
 const initialState: AppState = {
   user: null,
   currentConversation: null,
-  conversations: [],
-  fades: [],
+  conversations: [], // User's conversations
+  fades: [], // User's fades
+  discoverConversations: [], // Public conversations for discovery
+  discoverFades: [], // Public fades for discovery
   notebook: [],
   isConnected: false,
   typingUsers: new Set(),
@@ -73,6 +77,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
           fade.id === action.payload.id ? action.payload : fade
         ),
       };
+    
+    case 'SET_DISCOVER_CONVERSATIONS':
+      return { ...state, discoverConversations: action.payload };
+    
+    case 'SET_DISCOVER_FADES':
+      return { ...state, discoverFades: action.payload };
     
     case 'SET_NOTEBOOK':
       return { ...state, notebook: action.payload };
@@ -170,8 +180,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync user from auth context
   useEffect(() => {
+    const previousUserId = state.user?.id;
+    const currentUserId = user?.id;
+    
+    // Check if user has changed (login/logout/switching users)
+    const userChanged = previousUserId !== currentUserId;
+    
     dispatch({ type: 'SET_USER', payload: user });
-  }, [user]);
+    
+    // Clear all app state when user changes or logs out
+    if (!user || userChanged) {
+      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
+      dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
+      dispatch({ type: 'SET_FADES', payload: [] });
+      dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: [] });
+      dispatch({ type: 'SET_DISCOVER_FADES', payload: [] });
+      dispatch({ type: 'SET_NOTEBOOK', payload: [] });
+      dispatch({ type: 'SET_TYPING_USERS', payload: new Set() });
+    }
+  }, [user, state.user]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, activeTab: state.activeTab, setActiveTab }}>
