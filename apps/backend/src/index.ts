@@ -37,7 +37,14 @@ app.get('/health', (req, res) => {
 
 // Import and use auth routes
 import authRoutes from './routes/auth';
+import conversationRoutes from './routes/conversations';
+import messageRoutes from './routes/messages';
+import fadeRoutes from './routes/fades';
+
 app.use('/api/auth', authRoutes);
+app.use('/api/conversations', conversationRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/fades', fadeRoutes);
 
 // Socket event handlers setup function
 function setupSocketHandlers(socket: any) {
