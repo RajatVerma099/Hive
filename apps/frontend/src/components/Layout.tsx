@@ -91,30 +91,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               ))}
             </div>
           </nav>
-
-          {/* Current conversation info */}
-          {state.currentConversation && (
-            <div className="p-4 border-t border-gray-200">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <h3 className="font-medium text-gray-900 text-sm">
-                  {state.currentConversation.name}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {state.currentConversation.participants?.length || 0} participants
-                </p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {state.currentConversation.topics.slice(0, 3).map((topic) => (
-                    <span
-                      key={topic}
-                      className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </aside>
 
         {/* Main content area */}
