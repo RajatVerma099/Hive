@@ -5,11 +5,9 @@ import type { Conversation, Fade, SearchFilters } from '../types';
 import { 
   Search, 
   Filter, 
-  Plus, 
   Clock, 
   Users, 
   Hash,
-  Star,
   TrendingUp,
   Calendar
 } from 'lucide-react';
@@ -35,17 +33,17 @@ export const DiscoverTab: React.FC = () => {
         
         // Load conversations and fades in parallel
         const [conversations, fades] = await Promise.all([
-          apiService.getConversations(),
-          apiService.getFades()
+          apiService.getPublicConversations(),
+          apiService.getPublicFades()
         ]);
         
-        dispatch({ type: 'SET_CONVERSATIONS', payload: conversations as Conversation[] });
-        dispatch({ type: 'SET_FADES', payload: fades as Fade[] });
+        dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: conversations as Conversation[] });
+        dispatch({ type: 'SET_DISCOVER_FADES', payload: fades as Fade[] });
       } catch (error) {
         console.error('Error loading data:', error);
         setError('Failed to load conversations and fades');
-        dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
-        dispatch({ type: 'SET_FADES', payload: [] });
+        dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: [] });
+        dispatch({ type: 'SET_DISCOVER_FADES', payload: [] });
       } finally {
         setIsLoading(false);
       }
@@ -54,30 +52,81 @@ export const DiscoverTab: React.FC = () => {
     loadData();
   }, [dispatch]);
 
-  const handleJoinConversation = (conversation: Conversation) => {
-    dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+  const handleJoinConversation = async (conversation: Conversation, event?: React.MouseEvent) => {
+    // Prevent double-firing if clicked on the button specifically
+    event?.stopPropagation();
+    
+    try {
+      // Call the backend API to join the conversation
+      await apiService.joinConversation(conversation.id);
+      
+      // Fetch the updated conversation with all its data
+      const updatedConversation = await apiService.getConversation(conversation.id) as Conversation;
+      
+      // Add conversation to user's conversation list
+      dispatch({ type: 'ADD_CONVERSATION', payload: updatedConversation });
+      
+      // Set it as the current conversation
+      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+      
+      // Switch to Chats tab
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
+    } catch (error) {
+      console.error('Error joining conversation:', error);
+      // Could show error toast here
+    }
   };
 
-  const handleJoinFade = (fade: Fade) => {
-    // For now, treat fades like conversations
-    const conversation: Conversation = {
-      id: fade.id,
-      name: fade.name,
-      description: fade.description,
-      topics: fade.topics,
-      visibility: 'PUBLIC',
-      defaultMute: false,
-      createdAt: fade.createdAt,
-      updatedAt: fade.updatedAt,
-      creatorId: fade.creatorId,
-      isActive: fade.isActive,
-      participants: [],
-      messages: [],
-    };
-    dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+  const handleJoinFade = async (fade: Fade, event?: React.MouseEvent) => {
+    // Prevent double-firing if clicked on the button specifically
+    event?.stopPropagation();
+    
+    try {
+      // Call the backend API to join the fade
+      await apiService.joinFade(fade.id);
+      
+      // Fetch the updated fade with all its data
+      const updatedFade = await apiService.getFade(fade.id) as Fade;
+      
+      // Add fade to user's fade list
+      dispatch({ type: 'ADD_FADE', payload: updatedFade });
+      
+      // Convert fade to conversation format for display
+      const conversation: Conversation = {
+        id: updatedFade.id,
+        name: updatedFade.name,
+        description: updatedFade.description,
+        topics: updatedFade.topics,
+        visibility: 'PUBLIC',
+        defaultMute: false,
+        createdAt: updatedFade.createdAt,
+        updatedAt: updatedFade.updatedAt,
+        creatorId: updatedFade.creatorId,
+        isActive: updatedFade.isActive,
+        participants: updatedFade.participants ? updatedFade.participants.map(p => ({
+          id: p.id,
+          conversationId: p.fadeId,
+          userId: p.userId,
+          role: p.role,
+          joinedAt: p.joinedAt,
+          isMuted: p.isMuted,
+          user: p.user,
+        })) : [],
+        messages: [],
+      };
+      
+      // Set it as the current conversation
+      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+      
+      // Switch to Chats tab
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
+    } catch (error) {
+      console.error('Error joining fade:', error);
+      // Could show error toast here
+    }
   };
 
-  const filteredConversations = state.conversations.filter(conv => {
+  const filteredConversations = state.discoverConversations.filter(conv => {
     const matchesQuery = conv.name.toLowerCase().includes(searchFilters.query.toLowerCase()) ||
                         conv.description?.toLowerCase().includes(searchFilters.query.toLowerCase()) ||
                         conv.topics.some(topic => topic.toLowerCase().includes(searchFilters.query.toLowerCase()));
@@ -90,7 +139,7 @@ export const DiscoverTab: React.FC = () => {
     return matchesQuery && matchesVisibility && matchesTopics;
   });
 
-  const filteredFades = state.fades.filter(fade => {
+  const filteredFades = state.discoverFades.filter(fade => {
     const matchesQuery = fade.name.toLowerCase().includes(searchFilters.query.toLowerCase()) ||
                         fade.description?.toLowerCase().includes(searchFilters.query.toLowerCase()) ||
                         fade.topics.some(topic => topic.toLowerCase().includes(searchFilters.query.toLowerCase()));
@@ -121,12 +170,12 @@ export const DiscoverTab: React.FC = () => {
       setError(null);
       
       const [conversations, fades] = await Promise.all([
-        apiService.getConversations(),
-        apiService.getFades()
+        apiService.getPublicConversations(),
+        apiService.getPublicFades()
       ]);
       
-      dispatch({ type: 'SET_CONVERSATIONS', payload: conversations as Conversation[] });
-      dispatch({ type: 'SET_FADES', payload: fades as Fade[] });
+      dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: conversations as Conversation[] });
+      dispatch({ type: 'SET_DISCOVER_FADES', payload: fades as Fade[] });
     } catch (error) {
       console.error('Error refreshing data:', error);
       setError('Failed to refresh data');
@@ -139,11 +188,8 @@ export const DiscoverTab: React.FC = () => {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Discover Conversations</h2>
-          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <Plus size={20} className="text-gray-600" />
-          </button>
         </div>
         
         {/* Search and filters */}
@@ -247,7 +293,7 @@ export const DiscoverTab: React.FC = () => {
               {filteredFades.map((fade) => (
                 <div
                   key={fade.id}
-                  onClick={() => handleJoinFade(fade)}
+                  onClick={(e) => handleJoinFade(fade, e)}
                   className="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -300,15 +346,11 @@ export const DiscoverTab: React.FC = () => {
               {filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                onClick={() => handleJoinConversation(conversation)}
+                onClick={(e) => handleJoinConversation(conversation, e)}
                 className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-2">
                   <h4 className="font-medium text-gray-900">{conversation.name}</h4>
-                  <div className="flex items-center space-x-1">
-                    <Star size={14} className="text-gray-400" />
-                    <span className="text-xs text-gray-500">4.8</span>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">{conversation.description}</p>
                 <div className="flex flex-wrap gap-1 mb-3">
