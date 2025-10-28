@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
 class ApiService {
   private baseURL: string;
@@ -81,6 +81,10 @@ class ApiService {
     return this.request('/api/conversations');
   }
 
+  async getPublicConversations() {
+    return this.request('/api/conversations/public');
+  }
+
   async getConversation(id: string) {
     return this.request(`/api/conversations/${id}`);
   }
@@ -105,6 +109,18 @@ class ApiService {
     });
   }
 
+  async joinConversation(id: string) {
+    return this.request(`/api/conversations/${id}/join`, {
+      method: 'POST',
+    });
+  }
+
+  async leaveConversation(id: string) {
+    return this.request(`/api/conversations/${id}/leave`, {
+      method: 'POST',
+    });
+  }
+
   // Message endpoints (to be implemented)
   async getMessages(conversationId: string) {
     return this.request(`/api/conversations/${conversationId}/messages`);
@@ -117,27 +133,35 @@ class ApiService {
     });
   }
 
-  async pinMessage(messageId: string) {
-    return this.request(`/api/messages/${messageId}/pin`, {
-      method: 'POST',
-    });
-  }
-
-  async unpinMessage(messageId: string) {
-    return this.request(`/api/messages/${messageId}/unpin`, {
-      method: 'POST',
-    });
-  }
-
-  // Fade endpoints (to be implemented)
+  // Fade endpoints
   async getFades() {
     return this.request('/api/fades');
+  }
+
+  async getFade(id: string) {
+    return this.request(`/api/fades/${id}`);
+  }
+
+  async getPublicFades() {
+    return this.request('/api/fades/public');
   }
 
   async createFade(data: any) {
     return this.request('/api/fades', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async joinFade(id: string) {
+    return this.request(`/api/fades/${id}/join`, {
+      method: 'POST',
+    });
+  }
+
+  async leaveFade(id: string) {
+    return this.request(`/api/fades/${id}/leave`, {
+      method: 'POST',
     });
   }
 
