@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSocket } from '../hooks/useSocket';
 import { apiService } from '../services/api';
+import { CreateConversationModal } from './CreateConversationModal';
 import type { Conversation, Message } from '../types';
 import { 
   Plus, 
   Search, 
   MoreVertical, 
-  Pin, 
-  Star, 
   Clock,
   Users,
   Hash,
@@ -23,6 +22,7 @@ export const ChatsTab: React.FC = () => {
   // const [isTyping, setIsTyping] = useState(false); // TODO: Implement typing indicator
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Load conversations from API
   useEffect(() => {
@@ -62,7 +62,7 @@ export const ChatsTab: React.FC = () => {
     return () => offEvent('new-message', handleNewMessage);
   }, [state.currentConversation, onEvent, offEvent, dispatch]);
 
-  const handleJoinConversation = (conversation: Conversation) => {
+  const handleJoinConversation = async (conversation: Conversation) => {
     if (state.currentConversation?.id !== conversation.id) {
       // Leave current conversation
       if (state.currentConversation) {
@@ -71,7 +71,20 @@ export const ChatsTab: React.FC = () => {
       
       // Join new conversation
       joinConversation(conversation.id);
-      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+      
+      // Fetch all messages for this conversation
+      try {
+        const messages = await apiService.getMessages(conversation.id) as Message[];
+        const conversationWithMessages = {
+          ...conversation,
+          messages: messages
+        };
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversationWithMessages });
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        // Still set the conversation even if messages fail to load
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+      }
     }
   };
 
@@ -115,7 +128,10 @@ export const ChatsTab: React.FC = () => {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
               <Plus size={20} className="text-gray-600" />
             </button>
           </div>
@@ -225,50 +241,54 @@ export const ChatsTab: React.FC = () => {
           <>
             {/* Chat header */}
             <div className="bg-white border-b border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {state.currentConversation.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {state.currentConversation.participants?.length || 0} participants
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Pin size={16} className="text-gray-600" />
-                  </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Star size={16} className="text-gray-600" />
-                  </button>
-                </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {state.currentConversation.name}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {state.currentConversation.participants?.length || 0} participants
+                </p>
               </div>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {state.currentConversation.messages?.map((message) => (
-                <div key={message.id} className="message-enter">
-                  <div className="flex space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-medium text-primary-700">
-                        {message.user?.name?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-gray-900 text-sm">
-                          {message.user?.name || 'Unknown User'}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(message.createdAt).toLocaleTimeString()}
+              {state.currentConversation.messages && state.currentConversation.messages.length > 0 ? (
+                state.currentConversation.messages.map((message) => (
+                  <div key={message.id} className="message-enter">
+                    <div className="flex space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-medium text-primary-700">
+                          {message.user?.name?.charAt(0) || 'U'}
                         </span>
                       </div>
-                      <p className="text-gray-800 mt-1">{message.content}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-gray-900 text-sm">
+                            {message.user?.name || 'Unknown User'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(message.createdAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-800 mt-1">{message.content}</p>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <MessageCircle size={48} className="mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No messages yet
+                    </h3>
+                    <p className="text-gray-500">
+                      Be the first to send a message in this conversation
+                    </p>
+                  </div>
                 </div>
-              ))}
+              )}
               
               {/* Typing indicator */}
               {state.typingUsers.size > 0 && (
@@ -317,6 +337,12 @@ export const ChatsTab: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Create Conversation Modal */}
+      <CreateConversationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </div>
   );
 };
