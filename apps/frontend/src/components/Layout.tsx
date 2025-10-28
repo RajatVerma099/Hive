@@ -4,6 +4,7 @@ import type { TabType } from '../types';
 import { 
   MessageCircle, 
   Search, 
+  Clock,
   BookOpen, 
   User, 
   Wifi, 
@@ -17,6 +18,7 @@ interface LayoutProps {
 const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
   { id: 'chats', label: 'Chats', icon: <MessageCircle size={20} /> },
   { id: 'discover', label: 'Discover', icon: <Search size={20} /> },
+  { id: 'fades', label: 'Fades', icon: <Clock size={20} /> },
   { id: 'notebook', label: 'Notebook', icon: <BookOpen size={20} /> },
   { id: 'profile', label: 'Profile', icon: <User size={20} /> },
 ];
