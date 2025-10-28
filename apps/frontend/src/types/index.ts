@@ -147,8 +147,10 @@ export interface SocketEvents {
 export interface AppState {
   user: User | null;
   currentConversation: Conversation | null;
-  conversations: Conversation[];
-  fades: Fade[];
+  conversations: Conversation[]; // User's conversations
+  fades: Fade[]; // User's fades
+  discoverConversations: Conversation[]; // Public conversations for discovery
+  discoverFades: Fade[]; // Public fades for discovery
   notebook: Notebook[];
   isConnected: boolean;
   typingUsers: Set<string>;
@@ -156,7 +158,7 @@ export interface AppState {
 }
 
 // Tab types
-export type TabType = 'chats' | 'discover' | 'notebook' | 'profile';
+export type TabType = 'chats' | 'discover' | 'fades' | 'notebook' | 'profile';
 
 // Search filters
 export interface SearchFilters {
