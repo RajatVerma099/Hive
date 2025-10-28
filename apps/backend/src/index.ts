@@ -158,7 +158,7 @@ io.on('connection', (socket) => {
     prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { id: true, email: true, name: true }
-    }).then(user => {
+    }).then((user: any) => {
       if (!user) {
         console.log('Socket connection rejected: User not found');
         socket.emit('error', 'User not found');
@@ -172,7 +172,7 @@ io.on('connection', (socket) => {
       
       // Set up socket event handlers after authentication
       setupSocketHandlers(socket);
-    }).catch(error => {
+    }).catch((error: string) => {
       console.error('Database error during socket authentication:', error);
       socket.emit('error', 'Authentication failed');
       socket.disconnect();
@@ -196,6 +196,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 async function startServer() {
   try {
     // Test database connection
+    console.log('🔍 Testing database connection...');
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
     await prisma.$connect();
     console.log(`🗄️  Database: Connected successfully`);
     
