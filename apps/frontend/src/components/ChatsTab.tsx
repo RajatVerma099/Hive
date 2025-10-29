@@ -69,6 +69,11 @@ export const ChatsTab: React.FC = () => {
         leaveConversation(state.currentConversation.id);
       }
       
+      // Clear current fade since we're switching to a conversation
+      if (state.currentFade) {
+        dispatch({ type: 'SET_CURRENT_FADE', payload: null });
+      }
+      
       // Join new conversation
       joinConversation(conversation.id);
       

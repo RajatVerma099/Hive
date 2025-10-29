@@ -66,6 +66,9 @@ export const DiscoverTab: React.FC = () => {
       // Add conversation to user's conversation list
       dispatch({ type: 'ADD_CONVERSATION', payload: updatedConversation });
       
+      // Clear current fade since we're switching to a conversation
+      dispatch({ type: 'SET_CURRENT_FADE', payload: null });
+      
       // Set it as the current conversation
       dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
       
@@ -94,38 +97,30 @@ export const DiscoverTab: React.FC = () => {
       // Add fade to user's fade list
       dispatch({ type: 'ADD_FADE', payload: updatedFade });
       
-      // Convert fade to conversation format for display
-      const conversation: Conversation = {
-        id: updatedFade.id,
-        name: updatedFade.name,
-        description: updatedFade.description,
-        topics: updatedFade.topics,
-        visibility: 'PUBLIC',
-        defaultMute: false,
-        createdAt: updatedFade.createdAt,
-        updatedAt: updatedFade.updatedAt,
-        creatorId: updatedFade.creatorId,
-        isActive: updatedFade.isActive,
-        participants: updatedFade.participants ? updatedFade.participants.map(p => ({
-          id: p.id,
-          conversationId: p.fadeId,
-          userId: p.userId,
-          role: p.role,
-          joinedAt: p.joinedAt,
-          isMuted: p.isMuted,
-          user: p.user,
-        })) : [],
-        messages: [],
-      };
+      // Clear current conversation since we're switching to a fade
+      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
       
-      // Set it as the current conversation
-      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+      // Fetch messages for the fade
+      let fadeWithMessages = updatedFade;
+      try {
+        const messages = await apiService.getFadeMessages(updatedFade.id) as any[];
+        fadeWithMessages = {
+          ...updatedFade,
+          messages: messages
+        };
+      } catch (error) {
+        console.error('Error fetching fade messages:', error);
+        // Continue without messages if fetch fails
+      }
+      
+      // Set it as the current fade
+      dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
       
       // Refresh discover data to update join status
       await refreshData();
       
-      // Switch to Chats tab
-      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
+      // Switch to Fades tab
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'fades' });
     } catch (error) {
       console.error('Error joining fade:', error);
       // Could show error toast here

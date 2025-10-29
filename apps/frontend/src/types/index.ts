@@ -149,6 +149,7 @@ export interface SocketEvents {
 export interface AppState {
   user: User | null;
   currentConversation: Conversation | null;
+  currentFade: Fade | null;
   conversations: Conversation[]; // User's conversations
   fades: Fade[]; // User's fades
   discoverConversations: Conversation[]; // Public conversations for discovery

@@ -7,6 +7,7 @@ import { useAuth } from './AuthContext';
 type AppAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_CURRENT_CONVERSATION'; payload: Conversation | null }
+  | { type: 'SET_CURRENT_FADE'; payload: Fade | null }
   | { type: 'SET_CONVERSATIONS'; payload: Conversation[] } // User conversations
   | { type: 'ADD_CONVERSATION'; payload: Conversation }
   | { type: 'UPDATE_CONVERSATION'; payload: Conversation }
@@ -28,6 +29,7 @@ type AppAction =
 const initialState: AppState = {
   user: null,
   currentConversation: null,
+  currentFade: null,
   conversations: [], // User's conversations
   fades: [], // User's fades
   discoverConversations: [], // Public conversations for discovery
@@ -46,6 +48,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     
     case 'SET_CURRENT_CONVERSATION':
       return { ...state, currentConversation: action.payload };
+    
+    case 'SET_CURRENT_FADE':
+      return { ...state, currentFade: action.payload };
     
     case 'SET_CONVERSATIONS':
       return { ...state, conversations: action.payload };
@@ -191,6 +196,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Clear all app state when user changes or logs out
     if (!user || userChanged) {
       dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
+      dispatch({ type: 'SET_CURRENT_FADE', payload: null });
       dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
       dispatch({ type: 'SET_FADES', payload: [] });
       dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: [] });
