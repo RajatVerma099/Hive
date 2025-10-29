@@ -22,7 +22,7 @@ interface TopicPillProps {
 }
 
 const TopicPill: React.FC<TopicPillProps> = ({ topic, onRemove }) => (
-  <div className="inline-flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-sm font-bold shadow-lg border border-orange-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
+  <div className="inline-flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-full text-sm font-bold shadow-lg border border-orange-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
     <Hash className="w-4 h-4" />
     {topic}
     <button
@@ -197,11 +197,11 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
         padding: '1rem'
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
         {/* Header */}
         <div className="flex items-center justify-between p-10 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-orange-50 to-red-50">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -216,7 +216,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
           <button
             onClick={handleClose}
             disabled={isSubmitting}
-            className="p-3 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-2xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
+            className="p-3 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
           >
             <X className="w-6 h-6" />
           </button>
@@ -240,7 +240,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter fade name"
-              className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
+              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
               required
             />
           </div>
@@ -260,7 +260,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
                 onChange={(e) => setTopicInput(e.target.value)}
                 onKeyPress={handleTopicKeyPress}
                 placeholder="Type a topic and press Enter (max 50 chars)"
-                className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
+                className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
               />
               {topics.length > 0 && (
                 <div className="flex flex-wrap gap-3">
@@ -286,7 +286,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe this fade"
               rows={4}
-              className="w-full px-6 py-4 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md resize-none"
+              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md resize-none"
             />
           </div>
 
@@ -373,14 +373,14 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-8 py-4 text-lg font-bold text-gray-700 bg-white border-2 border-gray-300 rounded-2xl hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="px-8 py-4 text-lg font-bold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim() || topics.length === 0}
-              className="px-10 py-4 text-lg font-bold text-white bg-gradient-to-r from-orange-600 via-orange-700 to-red-700 rounded-2xl hover:from-orange-700 hover:via-orange-800 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
+              className="px-10 py-4 text-lg font-bold text-white bg-gradient-to-r from-orange-600 via-orange-700 to-red-700 rounded-full hover:from-orange-700 hover:via-orange-800 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
             >
               {isSubmitting ? (
                 <>

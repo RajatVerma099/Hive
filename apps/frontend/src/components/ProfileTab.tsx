@@ -79,14 +79,14 @@ export const ProfileTab: React.FC = () => {
               <>
                 <button
                   onClick={handleSave}
-                  className="flex items-center space-x-1 px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  className="flex items-center space-x-1 px-3 py-1 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors"
                 >
                   <Save size={16} />
                   <span>Save</span>
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex items-center space-x-1 px-3 py-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center space-x-1 px-3 py-1 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
                 >
                   <X size={16} />
                   <span>Cancel</span>
@@ -95,7 +95,7 @@ export const ProfileTab: React.FC = () => {
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center space-x-1 px-3 py-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center space-x-1 px-3 py-1 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
               >
                 <Edit3 size={16} />
                 <span>Edit</span>
@@ -131,7 +131,7 @@ export const ProfileTab: React.FC = () => {
           </div>
 
           {/* Profile Information */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h4>
             <div className="space-y-4">
               <div>
@@ -143,7 +143,7 @@ export const ProfileTab: React.FC = () => {
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 ) : (
                   <p className="text-gray-900">{state.user.name}</p>
@@ -159,7 +159,7 @@ export const ProfileTab: React.FC = () => {
                     type="text"
                     value={editForm.displayName}
                     onChange={(e) => setEditForm(prev => ({ ...prev, displayName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 ) : (
                   <p className="text-gray-900">{state.user.displayName || 'Not set'}</p>
@@ -175,7 +175,7 @@ export const ProfileTab: React.FC = () => {
                     type="email"
                     value={editForm.email}
                     onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 ) : (
                   <p className="text-gray-900">{state.user.email}</p>
@@ -198,7 +198,7 @@ export const ProfileTab: React.FC = () => {
           </div>
 
           {/* Settings */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Settings</h4>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -243,7 +243,7 @@ export const ProfileTab: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Activity</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
@@ -265,7 +265,7 @@ export const ProfileTab: React.FC = () => {
           <div className="text-center">
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors mx-auto"
+              className="flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-full transition-colors mx-auto"
             >
               <LogOut size={16} />
               <span>Logout</span>

@@ -27,11 +27,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="h-screen bg-gray-50">
       {/* Floating Header */}
       <header className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-6xl px-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 px-6 py-4">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left side - Logo */}
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center">
                 <MessageCircle className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-xl font-bold text-gray-900">Hive</h1>
@@ -43,7 +43,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-200 ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'bg-primary-600 text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -61,7 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Right side - Status and Actions */}
             <div className="flex items-center space-x-3">
               {/* Connection status */}
-              <div className="flex items-center space-x-1 text-sm bg-gray-50 rounded-lg px-3 py-2">
+              <div className="flex items-center space-x-1 text-sm bg-gray-50 rounded-xl px-3 py-2">
                 {state.isConnected ? (
                   <>
                     <Wifi className="w-4 h-4 text-green-500" />
@@ -78,7 +78,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Notebook button */}
               <button
                 onClick={() => setActiveTab('notebook')}
-                className={`p-2 rounded-xl transition-colors ${
+                className={`p-2 rounded-full transition-colors ${
                   activeTab === 'notebook'
                     ? 'bg-primary-50 text-primary-700 border border-primary-200'
                     : 'text-gray-700 hover:bg-gray-50'

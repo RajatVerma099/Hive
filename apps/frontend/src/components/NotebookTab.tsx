@@ -122,7 +122,7 @@ export const NotebookTab: React.FC = () => {
             placeholder="Search saved messages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
 
@@ -166,7 +166,7 @@ export const NotebookTab: React.FC = () => {
             </p>
             <button 
               onClick={refreshNotebook}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
             >
               Try Again
             </button>
@@ -187,7 +187,7 @@ export const NotebookTab: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {filteredNotebook.map((item) => (
-              <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900 mb-1">
@@ -202,14 +202,14 @@ export const NotebookTab: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => handleViewOriginal(item.message!)}
-                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
                       title="View original message"
                     >
                       <ExternalLink size={16} />
                     </button>
                     <button
                       onClick={() => handleRemoveFromNotebook(item.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                       title="Remove from notebook"
                     >
                       <Trash2 size={16} />
@@ -217,7 +217,7 @@ export const NotebookTab: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                <div className="bg-gray-50 rounded-xl p-3 mb-3">
                   <p className="text-gray-800">{item.message?.content || 'No content available'}</p>
                 </div>
                 
