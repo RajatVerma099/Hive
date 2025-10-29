@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
+import { StatusIndicator } from './StatusIndicator';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -25,6 +26,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <StatusIndicator />
         {isLoginMode ? (
           <LoginForm onSwitchToSignup={() => setIsLoginMode(false)} />
         ) : (
