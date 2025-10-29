@@ -23,9 +23,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className = ''
 
   const checkBackendStatus = async () => {
     try {
-      const startTime = Date.now();
       await apiService.healthCheck();
-      const responseTime = Date.now() - startTime;
       
       setServices(prev => prev.map(service => 
         service.name === 'Backend API' 
@@ -157,10 +155,14 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className = ''
         {/* Expanded Details */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50">
+            <div className="px-5 py-2">
+              <div className="text-xs font-medium text-gray-700 mb-2">Components:</div>
+            </div>
             {services.map((service, index) => (
-              <div key={index} className="px-5 py-2 border-b border-gray-200 last:border-b-0">
+              <div key={index} className="px-5 py-1.5 border-b border-gray-200 last:border-b-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 min-w-0 flex-1">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0 mt-0.5"></div>
                     {getStatusIcon(service.status)}
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-gray-900">
