@@ -133,6 +133,13 @@ class ApiService {
     });
   }
 
+  async sendFadeMessage(fadeId: string, content: string) {
+    return this.request(`/api/fades/${fadeId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
   // Fade endpoints
   async getFades() {
     return this.request('/api/fades');
@@ -140,6 +147,10 @@ class ApiService {
 
   async getFade(id: string) {
     return this.request(`/api/fades/${id}`);
+  }
+
+  async getFadeMessages(fadeId: string) {
+    return this.request(`/api/fades/${fadeId}/messages`);
   }
 
   async getPublicFades() {
