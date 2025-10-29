@@ -141,21 +141,19 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
 
   const modalContent = (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-lg z-50 flex items-center justify-center p-4 animate-in fade-in duration-300" 
+      className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center animate-in fade-in duration-300" 
       style={{ 
-        position: 'fixed' as const, 
+        position: 'fixed', 
         top: 0, 
         left: 0, 
         right: 0, 
         bottom: 0, 
         zIndex: 9999,
-        width: '100vw',
-        height: '100vh',
         margin: 0,
-        padding: 0
+        padding: '1rem'
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
         {/* Header */}
         <div className="flex items-center justify-between p-10 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
           <div className="flex items-center space-x-4">
