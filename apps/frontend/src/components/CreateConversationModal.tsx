@@ -21,14 +21,14 @@ interface TopicPillProps {
 }
 
 const TopicPill: React.FC<TopicPillProps> = ({ topic, onRemove }) => (
-  <div className="inline-flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-sm font-bold shadow-lg border border-blue-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
-    <Hash className="w-4 h-4" />
+  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-xs font-semibold shadow-lg border border-blue-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
+    <Hash className="w-3 h-3" />
     {topic}
     <button
       onClick={onRemove}
-      className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors duration-200"
+      className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors duration-200"
     >
-      <CloseIcon className="w-4 h-4" />
+      <CloseIcon className="w-3 h-3" />
     </button>
   </div>
 );
@@ -155,16 +155,16 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-10 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Plus className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Plus className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900">
                 Create New Conversation
               </h2>
-              <p className="text-gray-600 mt-2 font-medium">
+              <p className="text-gray-600 mt-0.5 text-sm">
                 Start a meaningful conversation with your community
               </p>
             </div>
@@ -172,23 +172,23 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
           <button
             onClick={handleClose}
             disabled={isSubmitting}
-            className="p-3 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-10">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">
               {error}
             </div>
           )}
 
           {/* Name */}
-          <div className="space-y-3">
-            <label className="block text-lg font-bold text-gray-900">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-900">
               Conversation Name *
             </label>
             <input
@@ -196,30 +196,30 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter conversation name"
-              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
+              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
               required
             />
           </div>
 
           {/* Topics */}
-          <div className="space-y-4">
-            <label className="block text-lg font-bold text-gray-900">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-900">
               Topics *
-              <span className="ml-3 text-gray-400" title="Keywords that help make this discoverable">
-                <Info className="w-5 h-5 inline" />
+              <span className="ml-2 text-gray-400" title="Keywords that help make this discoverable">
+                <Info className="w-4 h-4 inline" />
               </span>
             </label>
-            <div className="space-y-4">
+            <div className="space-y-2">
               <input
                 type="text"
                 value={topicInput}
                 onChange={(e) => setTopicInput(e.target.value)}
                 onKeyPress={handleTopicKeyPress}
                 placeholder="Type a topic and press Enter (max 50 chars)"
-                className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
               />
               {topics.length > 0 && (
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2">
                   {topics.map((topic, index) => (
                     <TopicPill
                       key={index}
@@ -233,33 +233,33 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
           </div>
 
           {/* Description */}
-          <div className="space-y-3">
-            <label className="block text-lg font-bold text-gray-900">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-900">
               Description
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe this conversation"
-              rows={4}
-              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-lg font-medium shadow-sm hover:shadow-md resize-none"
+              rows={3}
+              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md resize-none"
             />
           </div>
 
           {/* Conversation-specific fields */}
-          <div className="space-y-3">
-            <label className="flex items-center space-x-4 p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+          <div className="space-y-2">
+            <label className="flex items-center space-x-3 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={defaultMute}
                 onChange={(e) => setDefaultMute(e.target.checked)}
-                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-4 transition-all duration-200"
+                className="w-4 h-4 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-all duration-200"
               />
               <div>
-                <span className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">
+                <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">
                   Default mute for new participants
                 </span>
-                <p className="text-sm text-gray-600 mt-2 font-medium">
+                <p className="text-xs text-gray-600 mt-1">
                   New participants will be muted by default when they join this conversation
                 </p>
               </div>
@@ -267,28 +267,28 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
           </div>
 
           {/* Submit buttons */}
-          <div className="flex justify-end space-x-6 pt-12 border-t border-gray-200/50 bg-gradient-to-r from-gray-50 to-blue-50 -mx-10 px-10 py-8">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50 to-blue-50 -mx-6 px-6 py-4">
             <button
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-8 py-4 text-lg font-bold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="px-5 py-2 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim() || topics.length === 0}
-              className="px-10 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-full hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-3 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
+              className="px-6 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-full hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Creating...</span>
                 </>
               ) : (
                 <>
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   <span>Create Conversation</span>
                 </>
               )}
