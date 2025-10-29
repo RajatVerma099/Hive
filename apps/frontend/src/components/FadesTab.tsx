@@ -23,7 +23,6 @@ export const FadesTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [currentFade, setCurrentFade] = useState<Fade | null>(null);
 
   // Load fades from API
   useEffect(() => {
@@ -50,10 +49,15 @@ export const FadesTab: React.FC = () => {
   // TODO: Add socket support for fade messages similar to conversations
 
   const handleJoinFade = async (fade: Fade) => {
-    if (currentFade?.id !== fade.id) {
-      // Leave current conversation if switching
-      if (currentFade) {
-        leaveConversation(currentFade.id);
+    if (state.currentFade?.id !== fade.id) {
+      // Leave current fade if switching
+      if (state.currentFade) {
+        leaveConversation(state.currentFade.id);
+      }
+      
+      // Clear current conversation since we're switching to a fade
+      if (state.currentConversation) {
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
       }
       
       // Join new fade (using conversation socket for now)
@@ -66,29 +70,29 @@ export const FadesTab: React.FC = () => {
           ...fade,
           messages: messages
         };
-        setCurrentFade(fadeWithMessages);
+        dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
       } catch (error) {
         console.error('Error fetching fade messages:', error);
         // Still set the fade even if messages fail to load
-        setCurrentFade(fade);
+        dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
       }
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentFade || !state.user) return;
+    if (!newMessage.trim() || !state.currentFade || !state.user) return;
 
     try {
       // Send message via API
-      const message = await apiService.sendFadeMessage(currentFade.id, newMessage) as FadeMessage;
+      const message = await apiService.sendFadeMessage(state.currentFade.id, newMessage) as FadeMessage;
       
       // Add message to current fade
       const updatedFade = {
-        ...currentFade,
-        messages: [...(currentFade.messages || []), message],
+        ...state.currentFade,
+        messages: [...(state.currentFade.messages || []), message],
       };
-      setCurrentFade(updatedFade);
+      dispatch({ type: 'SET_CURRENT_FADE', payload: updatedFade });
       
       setNewMessage('');
     } catch (error) {
@@ -104,11 +108,11 @@ export const FadesTab: React.FC = () => {
       dispatch({ type: 'SET_FADES', payload: fades });
       
       // Update current fade if it exists
-      if (currentFade) {
-        const updatedFade = fades.find(f => f.id === currentFade.id);
+      if (state.currentFade) {
+        const updatedFade = fades.find(f => f.id === state.currentFade?.id);
         if (updatedFade) {
-          const messages = currentFade.messages || [];
-          setCurrentFade({ ...updatedFade, messages });
+          const messages = state.currentFade.messages || [];
+          dispatch({ type: 'SET_CURRENT_FADE', payload: { ...updatedFade, messages } });
         }
       }
     } catch (error) {
@@ -233,7 +237,7 @@ export const FadesTab: React.FC = () => {
               key={fade.id}
               onClick={() => handleJoinFade(fade)}
               className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                currentFade?.id === fade.id ? 'bg-primary-50 border-primary-200' : ''
+                state.currentFade?.id === fade.id ? 'bg-primary-50 border-primary-200' : ''
               }`}
             >
               <div className="flex items-start justify-between">
@@ -289,20 +293,20 @@ export const FadesTab: React.FC = () => {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
-        {currentFade ? (
+        {state.currentFade ? (
           <>
             {/* Chat header */}
             <div className="bg-white border-b border-gray-200 p-4">
               <div>
                 <h3 className="font-semibold text-gray-900">
-                  {currentFade.name}
+                  {state.currentFade.name}
                 </h3>
                 <div className="flex items-center space-x-4 mt-1">
                   <p className="text-sm text-gray-500">
-                    {currentFade.participants?.length || 0} participants
+                    {state.currentFade.participants?.length || 0} participants
                   </p>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getExpiryColor(currentFade.expiresAt)}`}>
-                    {getTimeRemaining(currentFade.expiresAt)}
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${getExpiryColor(state.currentFade.expiresAt)}`}>
+                    {getTimeRemaining(state.currentFade.expiresAt)}
                   </div>
                 </div>
               </div>
@@ -310,8 +314,8 @@ export const FadesTab: React.FC = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {currentFade.messages && currentFade.messages.length > 0 ? (
-                currentFade.messages.map((message) => (
+              {state.currentFade.messages && state.currentFade.messages.length > 0 ? (
+                state.currentFade.messages.map((message) => (
                   <div key={message.id} className="message-enter">
                     <div className="flex space-x-3">
                       <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
@@ -395,12 +399,12 @@ export const FadesTab: React.FC = () => {
               ...fade,
               messages: messages
             };
-            setCurrentFade(fadeWithMessages);
+            dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
             joinConversation(fade.id);
           } catch (error) {
             console.error('Error loading fade messages:', error);
             // Still set the fade even if messages fail to load
-            setCurrentFade(fade);
+            dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
             joinConversation(fade.id);
           }
         }}

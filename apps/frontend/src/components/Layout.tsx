@@ -27,7 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="h-screen bg-gray-50">
       {/* Floating Header */}
       <header className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-6xl px-4">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 px-6 py-4">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Left side - Logo */}
             <div className="flex items-center space-x-3">
