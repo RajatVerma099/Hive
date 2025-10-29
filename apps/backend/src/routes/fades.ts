@@ -132,6 +132,64 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// Get messages for a fade - MUST be before /:id route
+router.get('/:fadeId/messages', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { fadeId } = req.params;
+    const { limit, offset } = req.query;
+
+    // Check if user is a participant in the fade
+    const participant = await prisma.fadeParticipant.findFirst({
+      where: {
+        fadeId,
+        userId: req.user!.id
+      }
+    });
+
+    if (!participant) {
+      return res.status(403).json({ error: 'You are not a participant in this fade' });
+    }
+
+    const messages = await prisma.fadeMessage.findMany({
+      where: {
+        fadeId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            avatar: true
+          }
+        },
+        replyTo: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+                avatar: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      },
+      ...(limit && { take: parseInt(limit as string) }),
+      ...(offset && parseInt(offset as string) > 0 && { skip: parseInt(offset as string) })
+    });
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching fade messages:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get specific fade by ID
 router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
