@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSocket } from '../hooks/useSocket';
 import { apiService } from '../services/api';
 import { CreateFadeModal } from './CreateFadeModal';
+import { MessageBubble } from './MessageBubble';
 import type { Fade, FadeMessage } from '../types';
 import { 
   Plus, 
@@ -23,6 +24,11 @@ export const FadesTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState<Map<string, FadeMessage>>(new Map());
+  const pendingMessageIdRef = useRef(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load fades from API
   useEffect(() => {
@@ -50,6 +56,9 @@ export const FadesTab: React.FC = () => {
 
   const handleJoinFade = async (fade: Fade) => {
     if (state.currentFade?.id !== fade.id) {
+      // Clear pending messages when switching fades
+      setPendingMessages(new Map());
+      
       // Leave current fade if switching
       if (state.currentFade) {
         leaveConversation(state.currentFade.id);
@@ -59,6 +68,12 @@ export const FadesTab: React.FC = () => {
       if (state.currentConversation) {
         dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
       }
+      
+      // Set loading state BEFORE setting fade
+      setIsLoadingMessages(true);
+      
+      // Set fade with empty messages to show loading state
+      dispatch({ type: 'SET_CURRENT_FADE', payload: { ...fade, messages: [] } });
       
       // Join new fade (using conversation socket for now)
       joinConversation(fade.id);
@@ -74,29 +89,111 @@ export const FadesTab: React.FC = () => {
       } catch (error) {
         console.error('Error fetching fade messages:', error);
         // Still set the fade even if messages fail to load
-        dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
+        dispatch({ type: 'SET_CURRENT_FADE', payload: { ...fade, messages: [] } });
+      } finally {
+        setIsLoadingMessages(false);
       }
     }
   };
+  
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  useEffect(() => {
+    if (state.currentFade?.messages) {
+      scrollToBottom();
+    }
+  }, [state.currentFade?.messages?.length]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !state.currentFade || !state.user) return;
 
+    const messageContent = newMessage.trim();
+    
+    // Create optimistic message
+    const tempId = `pending-${Date.now()}-${pendingMessageIdRef.current++}`;
+    const optimisticMessage: FadeMessage = {
+      id: tempId,
+      content: messageContent,
+      fadeId: state.currentFade.id,
+      userId: state.user.id,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      user: state.user,
+    };
+
+    // Add to pending messages
+    setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+
+    // Add optimistic message to fade
+    const updatedFade = {
+      ...state.currentFade,
+      messages: [...(state.currentFade.messages || []), optimisticMessage],
+    };
+    dispatch({ type: 'SET_CURRENT_FADE', payload: updatedFade });
+
+    const fadeIdAtSend = state.currentFade.id;
+    
+    // Store the updated fade reference to use after API call
+    const fadeWithOptimistic = updatedFade;
+    
     try {
       // Send message via API
-      const message = await apiService.sendFadeMessage(state.currentFade.id, newMessage) as FadeMessage;
+      const message = await apiService.sendFadeMessage(fadeIdAtSend, messageContent) as FadeMessage;
       
-      // Add message to current fade
-      const updatedFade = {
-        ...state.currentFade,
-        messages: [...(state.currentFade.messages || []), message],
-      };
-      dispatch({ type: 'SET_CURRENT_FADE', payload: updatedFade });
+      // Remove from pending
+      setPendingMessages(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(tempId);
+        return newMap;
+      });
+      
+      // Replace optimistic message with confirmed one
+      // Check if we're still in the same fade
+      if (state.currentFade?.id === fadeIdAtSend) {
+        // Use fadeWithOptimistic.messages which definitely contains the optimistic message
+        // This ensures we're replacing the correct message even if state hasn't updated yet
+        const finalMessages = fadeWithOptimistic.messages.map((m: FadeMessage) => 
+          m.id === tempId ? message : m
+        );
+        
+        const finalFade = {
+          ...state.currentFade,
+          messages: finalMessages,
+        };
+        dispatch({ type: 'SET_CURRENT_FADE', payload: finalFade });
+      }
       
       setNewMessage('');
+      
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
+      // Remove failed message from UI
+      setPendingMessages(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(tempId);
+        return newMap;
+      });
+      
+      // Remove failed message if we're still in the same fade
+      if (state.currentFade?.id === fadeIdAtSend) {
+        const currentFadeMessages = state.currentFade.messages || fadeWithOptimistic.messages;
+        const failedMessages = currentFadeMessages.filter((m: FadeMessage) => m.id !== tempId);
+        
+        const failedFade = {
+          ...state.currentFade,
+          messages: failedMessages,
+        };
+        dispatch({ type: 'SET_CURRENT_FADE', payload: failedFade });
+      }
     }
   };
 
@@ -313,30 +410,38 @@ export const FadesTab: React.FC = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {state.currentFade.messages && state.currentFade.messages.length > 0 ? (
-                state.currentFade.messages.map((message) => (
-                  <div key={message.id} className="message-enter">
-                    <div className="flex space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-primary-700">
-                          {message.user?.name?.charAt(0) || 'U'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900 text-sm">
-                            {message.user?.name || 'Unknown User'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(message.createdAt).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-800 mt-1">{message.content}</p>
-                      </div>
-                    </div>
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
+              {isLoadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-gray-500">Loading messages...</p>
                   </div>
-                ))
+                </div>
+              ) : state.currentFade.messages && state.currentFade.messages.length > 0 ? (
+                <>
+                  {state.currentFade.messages.map((message) => {
+                    const isSent = message.userId === state.user?.id;
+                    const isPending = pendingMessages.has(message.id);
+                    
+                    return (
+                      <div key={message.id} className="message-enter">
+                        <MessageBubble
+                          content={message.content}
+                          timestamp={message.createdAt}
+                          isSent={isSent}
+                          isPending={isPending}
+                          senderName={message.user?.name}
+                          senderAvatar={message.user?.avatar}
+                          showSenderInfo={!isSent}
+                        />
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Scroll anchor */}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSocket } from '../hooks/useSocket';
 import { apiService } from '../services/api';
 import { CreateConversationModal } from './CreateConversationModal';
+import { MessageBubble } from './MessageBubble';
 import type { Conversation, Message } from '../types';
 import { 
   Plus, 
@@ -23,6 +24,11 @@ export const ChatsTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState<Map<string, Message>>(new Map());
+  const pendingMessageIdRef = useRef(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load conversations from API
   useEffect(() => {
@@ -45,25 +51,88 @@ export const ChatsTab: React.FC = () => {
     loadConversations();
   }, [dispatch]);
 
+  // Use refs to access latest state in socket handler
+  const conversationRef = useRef(state.currentConversation);
+  const userRef = useRef(state.user);
+  
+  useEffect(() => {
+    conversationRef.current = state.currentConversation;
+    userRef.current = state.user;
+  }, [state.currentConversation, state.user]);
+
   // Socket event handlers
   useEffect(() => {
     const handleNewMessage = (message: Message) => {
-      if (message.conversationId === state.currentConversation?.id) {
-        // Add message to current conversation
-        const updatedConversation = {
-          ...state.currentConversation,
-          messages: [...(state.currentConversation.messages || []), message],
-        };
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+      const currentConversation = conversationRef.current;
+      const currentUser = userRef.current;
+      
+      if (message.conversationId === currentConversation?.id) {
+        // Use functional update to get latest pending messages
+        setPendingMessages(currentPending => {
+          // Check if this is a confirmed version of a pending message
+          if (message.userId === currentUser?.id && currentPending.size > 0) {
+            // Find matching pending message by content (trimmed for comparison)
+            const pendingEntry = Array.from(currentPending.entries()).find(
+              ([_, pendingMsg]) => 
+                pendingMsg.content.trim() === message.content.trim() && 
+                pendingMsg.userId === message.userId &&
+                // Also check if sent recently (within last 10 seconds)
+                Math.abs(new Date(message.createdAt).getTime() - new Date(pendingMsg.createdAt).getTime()) < 10000
+            );
+            
+            if (pendingEntry) {
+              const tempId = pendingEntry[0];
+              
+              // Replace pending message in conversation with confirmed one
+              // Access current conversation from ref to ensure we have latest
+              const conversationToUpdate = conversationRef.current;
+              if (conversationToUpdate && conversationToUpdate.id === message.conversationId) {
+                const updatedMessages = (conversationToUpdate.messages || []).map((m: Message) => 
+                  m.id === tempId ? message : m
+                );
+                
+                const updatedConversation = {
+                  ...conversationToUpdate,
+                  messages: updatedMessages,
+                };
+                dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+              }
+              
+              // Remove from pending
+              const newMap = new Map(currentPending);
+              newMap.delete(tempId);
+              return newMap;
+            }
+          }
+
+          // Not a pending message - add it normally
+          const conversationToUpdate = conversationRef.current;
+          if (conversationToUpdate && conversationToUpdate.id === message.conversationId) {
+            // Check if message already exists (to avoid duplicates)
+            const existingMessage = conversationToUpdate.messages?.find((m: Message) => m.id === message.id);
+            if (!existingMessage) {
+              const updatedConversation = {
+                ...conversationToUpdate,
+                messages: [...(conversationToUpdate.messages || []), message],
+              };
+              dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+            }
+          }
+          
+          return currentPending;
+        });
       }
     };
 
     onEvent('new-message', handleNewMessage);
     return () => offEvent('new-message', handleNewMessage);
-  }, [state.currentConversation, onEvent, offEvent, dispatch]);
+  }, [onEvent, offEvent, dispatch]);
 
   const handleJoinConversation = async (conversation: Conversation) => {
     if (state.currentConversation?.id !== conversation.id) {
+      // Clear pending messages when switching conversations
+      setPendingMessages(new Map());
+      
       // Leave current conversation
       if (state.currentConversation) {
         leaveConversation(state.currentConversation.id);
@@ -73,6 +142,12 @@ export const ChatsTab: React.FC = () => {
       if (state.currentFade) {
         dispatch({ type: 'SET_CURRENT_FADE', payload: null });
       }
+      
+      // Set loading state BEFORE setting conversation
+      setIsLoadingMessages(true);
+      
+      // Set conversation with empty messages to show loading state
+      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...conversation, messages: [] } });
       
       // Join new conversation
       joinConversation(conversation.id);
@@ -88,22 +163,69 @@ export const ChatsTab: React.FC = () => {
       } catch (error) {
         console.error('Error fetching messages:', error);
         // Still set the conversation even if messages fail to load
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation });
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...conversation, messages: [] } });
+      } finally {
+        setIsLoadingMessages(false);
       }
     }
   };
+  
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  useEffect(() => {
+    if (state.currentConversation?.messages) {
+      scrollToBottom();
+    }
+  }, [state.currentConversation?.messages?.length]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !state.currentConversation || !state.user) return;
 
+    const messageContent = newMessage.trim();
+    
+    // Create optimistic message
+    const tempId = `pending-${Date.now()}-${pendingMessageIdRef.current++}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: messageContent,
+      conversationId: state.currentConversation.id,
+      userId: state.user.id,
+      isPinned: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      user: state.user,
+    };
+
+    // Add to pending messages
+    setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+
+    // Add optimistic message to conversation
+    const updatedConversation = {
+      ...state.currentConversation,
+      messages: [...(state.currentConversation.messages || []), optimisticMessage],
+    };
+    dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+    
+    // Update ref immediately so socket handler has latest state
+    conversationRef.current = updatedConversation;
+
+    // Send message via socket
     sendMessage({
       conversationId: state.currentConversation.id,
-      content: newMessage,
+      content: messageContent,
       userId: state.user.id,
     });
 
     setNewMessage('');
+    
+    // Scroll to bottom after sending
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
   };
 
   const refreshConversations = async () => {
@@ -257,30 +379,50 @@ export const ChatsTab: React.FC = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {state.currentConversation.messages && state.currentConversation.messages.length > 0 ? (
-                state.currentConversation.messages.map((message) => (
-                  <div key={message.id} className="message-enter">
-                    <div className="flex space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-primary-700">
-                          {message.user?.name?.charAt(0) || 'U'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900 text-sm">
-                            {message.user?.name || 'Unknown User'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(message.createdAt).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-800 mt-1">{message.content}</p>
-                      </div>
-                    </div>
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
+              {isLoadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-gray-500">Loading messages...</p>
                   </div>
-                ))
+                </div>
+              ) : state.currentConversation.messages && state.currentConversation.messages.length > 0 ? (
+                <>
+                  {state.currentConversation.messages.map((message) => {
+                    const isSent = message.userId === state.user?.id;
+                    const isPending = pendingMessages.has(message.id);
+                    
+                    return (
+                      <div key={message.id} className="message-enter">
+                        <MessageBubble
+                          content={message.content}
+                          timestamp={message.createdAt}
+                          isSent={isSent}
+                          isPending={isPending}
+                          senderName={message.user?.name}
+                          senderAvatar={message.user?.avatar}
+                          showSenderInfo={!isSent}
+                        />
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Typing indicator */}
+                  {state.typingUsers.size > 0 && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500 pt-2">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style={{ animationDelay: '0.4s' }}></div>
+                      </div>
+                      <span>Someone is typing...</span>
+                    </div>
+                  )}
+                  
+                  {/* Scroll anchor */}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -292,18 +434,6 @@ export const ChatsTab: React.FC = () => {
                       Be the first to send a message in this conversation
                     </p>
                   </div>
-                </div>
-              )}
-              
-              {/* Typing indicator */}
-              {state.typingUsers.size > 0 && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full typing-indicator" style={{ animationDelay: '0.4s' }}></div>
-                  </div>
-                  <span>Someone is typing...</span>
                 </div>
               )}
             </div>
