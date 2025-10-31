@@ -12,7 +12,11 @@ import {
   Clock,
   Users,
   Hash,
-  MessageCircle
+  MessageCircle,
+  Edit,
+  Trash2,
+  LogOut,
+  Share2
 } from 'lucide-react';
 
 export const ChatsTab: React.FC = () => {
@@ -24,6 +28,8 @@ export const ChatsTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingConversation, setEditingConversation] = useState<Conversation | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [pendingMessages, setPendingMessages] = useState<Map<string, Message>>(new Map());
   const pendingMessageIdRef = useRef(0);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -247,6 +253,70 @@ export const ChatsTab: React.FC = () => {
     conv.topics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside any menu
+      if (!target.closest('.conversation-menu')) {
+        setMenuOpenId(null);
+      }
+    };
+
+    if (menuOpenId) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [menuOpenId]);
+
+  const handleEditConversation = (conversation: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    setEditingConversation(conversation);
+    setShowCreateModal(true);
+  };
+
+  const handleDeleteConversation = async (conversation: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    
+    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiService.deleteConversation(conversation.id);
+      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    }
+  };
+
+  const handleLeaveConversation = async (conversation: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    
+    try {
+      await apiService.leaveConversation(conversation.id);
+      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
+      // Clear current conversation if it's the one we're leaving
+      if (state.currentConversation?.id === conversation.id) {
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
+        leaveConversation(conversation.id);
+      }
+    } catch (error) {
+      console.error('Error leaving conversation:', error);
+    }
+  };
+
+  const handleShareConversation = (conversation: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    // Placeholder for future share functionality
+    console.log('Share conversation:', conversation.id);
+    // TODO: Implement share functionality
+  };
+
   return (
     <div className="flex h-full">
       {/* Conversations list */}
@@ -340,9 +410,56 @@ export const ChatsTab: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <button className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-                  <MoreVertical size={16} className="text-gray-400" />
-                </button>
+                <div className="relative conversation-menu">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpenId(menuOpenId === conversation.id ? null : conversation.id);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <MoreVertical size={16} className="text-gray-400" />
+                  </button>
+                  {menuOpenId === conversation.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 conversation-menu">
+                      {state.user?.id === conversation.creatorId && (
+                        <>
+                          <button
+                            onClick={(e) => handleEditConversation(conversation, e)}
+                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            <Edit size={16} />
+                            <span>Edit Conversation</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteConversation(conversation, e)}
+                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                            <span>Delete Conversation</span>
+                          </button>
+                          <div className="border-t border-gray-200 my-1"></div>
+                        </>
+                      )}
+                      <button
+                        onClick={(e) => handleShareConversation(conversation, e)}
+                        className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Share2 size={16} />
+                        <span>Share Conversation</span>
+                      </button>
+                      {state.user?.id !== conversation.creatorId && (
+                        <button
+                          onClick={(e) => handleLeaveConversation(conversation, e)}
+                          className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          <span>Leave Conversation</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Topics */}
@@ -476,7 +593,15 @@ export const ChatsTab: React.FC = () => {
       {/* Create Conversation Modal */}
       <CreateConversationModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingConversation(null);
+        }}
+        conversation={editingConversation}
+        onDeleted={() => {
+          // Refresh conversations list
+          refreshConversations();
+        }}
       />
     </div>
   );

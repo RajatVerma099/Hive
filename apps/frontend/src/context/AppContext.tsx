@@ -11,9 +11,11 @@ type AppAction =
   | { type: 'SET_CONVERSATIONS'; payload: Conversation[] } // User conversations
   | { type: 'ADD_CONVERSATION'; payload: Conversation }
   | { type: 'UPDATE_CONVERSATION'; payload: Conversation }
+  | { type: 'REMOVE_CONVERSATION'; payload: string } // Conversation ID
   | { type: 'SET_FADES'; payload: Fade[] } // User fades
   | { type: 'ADD_FADE'; payload: Fade }
   | { type: 'UPDATE_FADE'; payload: Fade }
+  | { type: 'REMOVE_FADE'; payload: string } // Fade ID
   | { type: 'SET_DISCOVER_CONVERSATIONS'; payload: Conversation[] } // Discover conversations
   | { type: 'SET_DISCOVER_FADES'; payload: Fade[] } // Discover fades
   | { type: 'SET_NOTEBOOK'; payload: Notebook[] }
@@ -67,6 +69,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         conversations: state.conversations.map(conv =>
           conv.id === action.payload.id ? action.payload : conv
         ),
+        currentConversation: state.currentConversation?.id === action.payload.id 
+          ? action.payload 
+          : state.currentConversation,
+      };
+    
+    case 'REMOVE_CONVERSATION':
+      return {
+        ...state,
+        conversations: state.conversations.filter(conv => conv.id !== action.payload),
+        currentConversation: state.currentConversation?.id === action.payload 
+          ? null 
+          : state.currentConversation,
       };
     
     case 'SET_FADES':
@@ -81,6 +95,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         fades: state.fades.map(fade =>
           fade.id === action.payload.id ? action.payload : fade
         ),
+        currentFade: state.currentFade?.id === action.payload.id 
+          ? action.payload 
+          : state.currentFade,
+      };
+    
+    case 'REMOVE_FADE':
+      return {
+        ...state,
+        fades: state.fades.filter(fade => fade.id !== action.payload),
+        currentFade: state.currentFade?.id === action.payload 
+          ? null 
+          : state.currentFade,
       };
     
     case 'SET_DISCOVER_CONVERSATIONS':

@@ -176,6 +176,19 @@ class ApiService {
     });
   }
 
+  async updateFade(id: string, data: any) {
+    return this.request(`/api/fades/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFade(id: string) {
+    return this.request(`/api/fades/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Notebook endpoints (to be implemented)
   async getNotebook() {
     return this.request('/api/notebook');

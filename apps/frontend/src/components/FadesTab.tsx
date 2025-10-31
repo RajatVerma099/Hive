@@ -13,7 +13,11 @@ import {
   Users,
   Hash,
   MessageCircle,
-  Timer
+  Timer,
+  Edit,
+  Trash2,
+  LogOut,
+  Share2
 } from 'lucide-react';
 
 export const FadesTab: React.FC = () => {
@@ -24,6 +28,8 @@ export const FadesTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingFade, setEditingFade] = useState<Fade | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [pendingMessages, setPendingMessages] = useState<Map<string, FadeMessage>>(new Map());
   const pendingMessageIdRef = useRef(0);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -226,6 +232,70 @@ export const FadesTab: React.FC = () => {
     fade.topics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside any menu
+      if (!target.closest('.fade-menu')) {
+        setMenuOpenId(null);
+      }
+    };
+
+    if (menuOpenId) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [menuOpenId]);
+
+  const handleEditFade = (fade: Fade, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    setEditingFade(fade);
+    setShowCreateModal(true);
+  };
+
+  const handleDeleteFade = async (fade: Fade, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    
+    if (!window.confirm('Are you sure you want to delete this fade? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiService.deleteFade(fade.id);
+      dispatch({ type: 'REMOVE_FADE', payload: fade.id });
+    } catch (error) {
+      console.error('Error deleting fade:', error);
+    }
+  };
+
+  const handleLeaveFade = async (fade: Fade, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    
+    try {
+      await apiService.leaveFade(fade.id);
+      dispatch({ type: 'REMOVE_FADE', payload: fade.id });
+      // Clear current fade if it's the one we're leaving
+      if (state.currentFade?.id === fade.id) {
+        dispatch({ type: 'SET_CURRENT_FADE', payload: null });
+        leaveConversation(fade.id);
+      }
+    } catch (error) {
+      console.error('Error leaving fade:', error);
+    }
+  };
+
+  const handleShareFade = (fade: Fade, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpenId(null);
+    // Placeholder for future share functionality
+    console.log('Share fade:', fade.id);
+    // TODO: Implement share functionality
+  };
+
   const getTimeRemaining = (expiresAt: string) => {
     const now = new Date();
     const expiry = new Date(expiresAt);
@@ -366,9 +436,56 @@ export const FadesTab: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <button className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-                  <MoreVertical size={16} className="text-gray-400" />
-                </button>
+                <div className="relative fade-menu">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpenId(menuOpenId === fade.id ? null : fade.id);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <MoreVertical size={16} className="text-gray-400" />
+                  </button>
+                  {menuOpenId === fade.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 fade-menu">
+                      {state.user?.id === fade.creatorId && (
+                        <>
+                          <button
+                            onClick={(e) => handleEditFade(fade, e)}
+                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            <Edit size={16} />
+                            <span>Edit Fade</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteFade(fade, e)}
+                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                            <span>Delete Fade</span>
+                          </button>
+                          <div className="border-t border-gray-200 my-1"></div>
+                        </>
+                      )}
+                      <button
+                        onClick={(e) => handleShareFade(fade, e)}
+                        className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Share2 size={16} />
+                        <span>Share Fade</span>
+                      </button>
+                      {state.user?.id !== fade.creatorId && (
+                        <button
+                          onClick={(e) => handleLeaveFade(fade, e)}
+                          className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          <span>Leave Fade</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Topics */}
@@ -495,23 +612,34 @@ export const FadesTab: React.FC = () => {
       {/* Create Fade Modal */}
       <CreateFadeModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingFade(null);
+        }}
+        fade={editingFade}
         onFadeCreated={async (fade: Fade) => {
-          // Fetch the fade with messages and open it
-          try {
-            const messages = await apiService.getFadeMessages(fade.id) as FadeMessage[];
-            const fadeWithMessages = {
-              ...fade,
-              messages: messages
-            };
-            dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
-            joinConversation(fade.id);
-          } catch (error) {
-            console.error('Error loading fade messages:', error);
-            // Still set the fade even if messages fail to load
-            dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
-            joinConversation(fade.id);
+          // Only auto-open if creating new fade, not editing
+          if (!editingFade) {
+            // Fetch the fade with messages and open it
+            try {
+              const messages = await apiService.getFadeMessages(fade.id) as FadeMessage[];
+              const fadeWithMessages = {
+                ...fade,
+                messages: messages
+              };
+              dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
+              joinConversation(fade.id);
+            } catch (error) {
+              console.error('Error loading fade messages:', error);
+              // Still set the fade even if messages fail to load
+              dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
+              joinConversation(fade.id);
+            }
           }
+        }}
+        onDeleted={() => {
+          // Refresh fades list
+          refreshFades();
         }}
       />
     </div>

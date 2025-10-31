@@ -2,17 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiService } from '../services/api';
 import { useApp } from '../context/AppContext';
+import type { Conversation } from '../types';
 import { 
   X, 
   Hash, 
   Info, 
   Plus,
+  Edit,
+  Trash2,
   X as CloseIcon
 } from 'lucide-react';
 
 interface CreateConversationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  conversation?: Conversation | null;
+  onDeleted?: () => void;
 }
 
 interface TopicPillProps {
@@ -35,10 +40,13 @@ const TopicPill: React.FC<TopicPillProps> = ({ topic, onRemove }) => (
 
 export const CreateConversationModal: React.FC<CreateConversationModalProps> = ({ 
   isOpen, 
-  onClose 
+  onClose,
+  conversation,
+  onDeleted
 }) => {
   const { dispatch } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -60,11 +68,31 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
     };
   }, [isOpen]);
 
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (conversation && isOpen) {
+      setName(conversation.name || '');
+      setDescription(conversation.description || '');
+      setTopics(conversation.topics || []);
+      setTopicInput('');
+      setDefaultMute(false); // Note: defaultMute might not be available in conversation object
+    } else if (!conversation && isOpen) {
+      // Reset form when creating new
+      setName('');
+      setDescription('');
+      setTopics([]);
+      setTopicInput('');
+      setDefaultMute(false);
+    }
+  }, [conversation, isOpen]);
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [topics, setTopics] = useState<string[]>([]);
   const [topicInput, setTopicInput] = useState('');
   const [defaultMute, setDefaultMute] = useState(false);
+  
+  const isEditMode = !!conversation;
 
   const handleTopicKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && topicInput.trim()) {
@@ -98,16 +126,30 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
         throw new Error('At least one topic is required');
       }
 
-      const response = await apiService.createConversation({
-        name: name.trim(),
-        description: description.trim() || null,
-        topics,
-        visibility: 'PUBLIC',
-        defaultMute
-      });
+      if (isEditMode && conversation) {
+        // Update existing conversation
+        const response = await apiService.updateConversation(conversation.id, {
+          name: name.trim(),
+          description: description.trim() || null,
+          topics,
+          visibility: conversation.visibility || 'PUBLIC'
+        });
 
-      // Update the app state
-      dispatch({ type: 'ADD_CONVERSATION', payload: response as any });
+        // Update the app state
+        dispatch({ type: 'UPDATE_CONVERSATION', payload: response as any });
+      } else {
+        // Create new conversation
+        const response = await apiService.createConversation({
+          name: name.trim(),
+          description: description.trim() || null,
+          topics,
+          visibility: 'PUBLIC',
+          defaultMute
+        });
+
+        // Update the app state
+        dispatch({ type: 'ADD_CONVERSATION', payload: response as any });
+      }
 
       // Reset form
       setName('');
@@ -118,9 +160,38 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
 
       onClose();
     } catch (error: any) {
-      setError(error.message || 'Failed to create conversation');
+      setError(error.message || (isEditMode ? 'Failed to update conversation' : 'Failed to create conversation'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isEditMode || !conversation) return;
+    
+    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+
+    setError(null);
+    setIsDeleting(true);
+
+    try {
+      await apiService.deleteConversation(conversation.id);
+      
+      // Update the app state
+      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
+      
+      // Call onDeleted callback if provided
+      if (onDeleted) {
+        onDeleted();
+      }
+      
+      onClose();
+    } catch (error: any) {
+      setError(error.message || 'Failed to delete conversation');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -158,14 +229,14 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
         <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Plus className="w-5 h-5 text-white" />
+              {isEditMode ? <Edit className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                Create New Conversation
+                {isEditMode ? 'Edit Conversation' : 'Create New Conversation'}
               </h2>
               <p className="text-gray-600 mt-0.5 text-sm">
-                Start a meaningful conversation with your community
+                {isEditMode ? 'Update conversation details' : 'Start a meaningful conversation with your community'}
               </p>
             </div>
           </div>
@@ -267,32 +338,54 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
           </div>
 
           {/* Submit buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50 to-blue-50 -mx-6 px-6 py-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !name.trim() || topics.length === 0}
-              className="px-6 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-full hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  <span>Create Conversation</span>
-                </>
-              )}
-            </button>
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50 to-blue-50 -mx-6 px-6 py-4">
+            {isEditMode && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting || isDeleting}
+                className="px-5 py-2 text-sm font-semibold text-red-700 bg-white border-2 border-red-300 rounded-full hover:bg-red-50 hover:border-red-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center space-x-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-700 border-t-transparent rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Conversation</span>
+                  </>
+                )}
+              </button>
+            )}
+            <div className="flex justify-end space-x-3 ml-auto">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isSubmitting || isDeleting}
+                className="px-5 py-2 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isDeleting || !name.trim() || topics.length === 0}
+                className="px-6 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-full hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 disabled:hover:scale-100"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
+                  </>
+                ) : (
+                  <>
+                    {isEditMode ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{isEditMode ? 'Update Conversation' : 'Create Conversation'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
