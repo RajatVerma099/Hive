@@ -454,7 +454,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
 router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, description, topics } = req.body;
+    const { name, description, topics, expiresAt } = req.body;
 
     // Check if user is the creator
     const existingFade = await prisma.fade.findFirst({
@@ -484,12 +484,32 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res) => 
       return res.status(400).json({ error: 'Topics must be an array' });
     }
 
+    // Validate expiresAt if provided
+    if (expiresAt !== undefined) {
+      const expiryDate = new Date(expiresAt);
+      const now = new Date();
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      if (isNaN(expiryDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid expiry date format' });
+      }
+      
+      if (expiryDate <= now) {
+        return res.status(400).json({ error: 'Expiry date must be in the future' });
+      }
+      
+      if (expiryDate > oneWeekFromNow) {
+        return res.status(400).json({ error: 'Expiry date cannot be more than 1 week from now' });
+      }
+    }
+
     const updatedFade = await prisma.fade.update({
       where: { id },
       data: {
         ...(name && { name: name.trim() }),
         ...(description !== undefined && { description: description?.trim() || null }),
-        ...(topics && { topics })
+        ...(topics && { topics }),
+        ...(expiresAt && { expiresAt: new Date(expiresAt) })
       },
       include: {
         creator: {
