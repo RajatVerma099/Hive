@@ -16,7 +16,9 @@ import {
   Edit,
   Trash2,
   LogOut,
-  Share2
+  Share2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export const ChatsTab: React.FC = () => {
@@ -35,6 +37,7 @@ export const ChatsTab: React.FC = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isConversationsListCollapsed, setIsConversationsListCollapsed] = useState(false);
 
   // Load conversations from API
   useEffect(() => {
@@ -318,13 +321,22 @@ export const ChatsTab: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
       {/* Conversations list */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div 
+        className={`bg-white flex flex-col transition-all duration-300 ease-in-out relative ${
+          isConversationsListCollapsed 
+            ? 'w-1.5 bg-white/70 shadow-sm z-20' 
+            : 'w-80 border-r border-gray-200 rounded-r-xl'
+        }`}
+      >
         {/* Header */}
+        {!isConversationsListCollapsed && (
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
+            </div>
             <button 
               onClick={() => setShowCreateModal(true)}
               className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
@@ -345,8 +357,10 @@ export const ChatsTab: React.FC = () => {
             />
           </div>
         </div>
+        )}
 
         {/* Conversations list */}
+        {!isConversationsListCollapsed && (
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -477,7 +491,25 @@ export const ChatsTab: React.FC = () => {
             ))
           )}
         </div>
+        )}
       </div>
+
+      {/* Collapse/Expand Button */}
+      <button
+        onClick={() => setIsConversationsListCollapsed(!isConversationsListCollapsed)}
+        className={`absolute top-[104px] z-30 w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 transition-all duration-300 ${
+          isConversationsListCollapsed 
+            ? 'left-1.5 -translate-x-1/2' 
+            : 'left-80 -translate-x-1/2'
+        }`}
+        title={isConversationsListCollapsed ? 'Expand conversations' : 'Collapse conversations'}
+      >
+        {isConversationsListCollapsed ? (
+          <ChevronRight size={16} className="text-gray-600" />
+        ) : (
+          <ChevronLeft size={16} className="text-gray-600" />
+        )}
+      </button>
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
