@@ -5,11 +5,11 @@ import { apiService } from '../services/api';
 import { CreateConversationModal } from './CreateConversationModal';
 import { MessageBubble } from './MessageBubble';
 import type { Conversation, Message } from '../types';
+import { formatDate } from '../utils/dateFormat';
 import { 
   Plus, 
   Search, 
   MoreVertical, 
-  Clock,
   Users,
   Hash,
   MessageCircle,
@@ -18,7 +18,9 @@ import {
   LogOut,
   Share2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Info,
+  X
 } from 'lucide-react';
 
 export const ChatsTab: React.FC = () => {
@@ -26,7 +28,6 @@ export const ChatsTab: React.FC = () => {
   const { joinConversation, leaveConversation, sendMessage, onEvent, offEvent } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
-  // const [isTyping, setIsTyping] = useState(false); // TODO: Implement typing indicator
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -38,6 +39,8 @@ export const ChatsTab: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isConversationsListCollapsed, setIsConversationsListCollapsed] = useState(false);
+  const [showDetailsPanel, setShowDetailsPanel] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
 
   // Load conversations from API
   useEffect(() => {
@@ -141,6 +144,8 @@ export const ChatsTab: React.FC = () => {
     if (state.currentConversation?.id !== conversation.id) {
       // Clear pending messages when switching conversations
       setPendingMessages(new Map());
+      setShowDetailsPanel(false);
+      setShowAllTags(false);
       
       // Leave current conversation
       if (state.currentConversation) {
@@ -394,101 +399,113 @@ export const ChatsTab: React.FC = () => {
               </p>
             </div>
           ) : (
-            filteredConversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              onClick={() => handleJoinConversation(conversation)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                state.currentConversation?.id === conversation.id ? 'bg-primary-50 border-primary-200' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <Hash size={16} className="text-gray-400 flex-shrink-0" />
-                    <h3 className="font-medium text-gray-900 truncate">
-                      {conversation.name}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                    {conversation.description}
-                  </p>
-                  <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Users size={12} />
-                      <span>{conversation.participants?.length || 0}</span>
+            filteredConversations.map((conversation) => {
+              const maxVisibleTags = 2;
+              const visibleTags = conversation.topics.slice(0, maxVisibleTags);
+              const remainingTagsCount = conversation.topics.length - maxVisibleTags;
+              
+              return (
+              <div
+                key={conversation.id}
+                onClick={() => handleJoinConversation(conversation)}
+                className={`p-2.5 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  state.currentConversation?.id === conversation.id ? 'bg-primary-50 border-primary-200' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1.5">
+                      <Hash size={14} className="text-gray-400 flex-shrink-0" />
+                      <h3 className="font-medium text-gray-900 truncate text-sm">
+                        {conversation.name}
+                      </h3>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock size={12} />
-                      <span>{new Date(conversation.updatedAt).toLocaleDateString()}</span>
+                    <div className="flex items-center space-x-2 mt-1 text-xs text-gray-400">
+                      <div className="flex items-center space-x-1">
+                        <Users size={11} />
+                        <span>{conversation.participants?.length || 0}</span>
+                      </div>
+                      {conversation.topics.length > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <span>•</span>
+                          <span>{conversation.topics.length} tags</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div className="relative conversation-menu">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpenId(menuOpenId === conversation.id ? null : conversation.id);
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                  >
-                    <MoreVertical size={16} className="text-gray-400" />
-                  </button>
-                  {menuOpenId === conversation.id && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 conversation-menu">
-                      {state.user?.id === conversation.creatorId && (
-                        <>
+                  <div className="relative conversation-menu">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpenId(menuOpenId === conversation.id ? null : conversation.id);
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                    >
+                      <MoreVertical size={14} className="text-gray-400" />
+                    </button>
+                    {menuOpenId === conversation.id && (
+                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 conversation-menu">
+                        {state.user?.id === conversation.creatorId && (
+                          <>
+                            <button
+                              onClick={(e) => handleEditConversation(conversation, e)}
+                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              <Edit size={16} />
+                              <span>Edit Conversation</span>
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteConversation(conversation, e)}
+                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                              <span>Delete Conversation</span>
+                            </button>
+                            <div className="border-t border-gray-200 my-1"></div>
+                          </>
+                        )}
+                        <button
+                          onClick={(e) => handleShareConversation(conversation, e)}
+                          className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <Share2 size={16} />
+                          <span>Share Conversation</span>
+                        </button>
+                        {state.user?.id !== conversation.creatorId && (
                           <button
-                            onClick={(e) => handleEditConversation(conversation, e)}
-                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                          >
-                            <Edit size={16} />
-                            <span>Edit Conversation</span>
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteConversation(conversation, e)}
+                            onClick={(e) => handleLeaveConversation(conversation, e)}
                             className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                           >
-                            <Trash2 size={16} />
-                            <span>Delete Conversation</span>
+                            <LogOut size={16} />
+                            <span>Leave Conversation</span>
                           </button>
-                          <div className="border-t border-gray-200 my-1"></div>
-                        </>
-                      )}
-                      <button
-                        onClick={(e) => handleShareConversation(conversation, e)}
-                        className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      >
-                        <Share2 size={16} />
-                        <span>Share Conversation</span>
-                      </button>
-                      {state.user?.id !== conversation.creatorId && (
-                        <button
-                          onClick={(e) => handleLeaveConversation(conversation, e)}
-                          className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut size={16} />
-                          <span>Leave Conversation</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                
+                {/* Topics */}
+                {conversation.topics.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {visibleTags.map((topic) => (
+                      <span
+                        key={topic}
+                        className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                    {remainingTagsCount > 0 && (
+                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
+                        +{remainingTagsCount} more
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              
-              {/* Topics */}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {conversation.topics.slice(0, 3).map((topic) => (
-                  <span
-                    key={topic}
-                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                  >
-                    {topic}
-                  </span>
-                ))}
-              </div>
-            </div>
-            ))
+              );
+            })
           )}
         </div>
         )}
@@ -512,20 +529,165 @@ export const ChatsTab: React.FC = () => {
       </button>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`flex-1 flex flex-col relative ${showDetailsPanel && state.currentConversation ? 'pr-80' : ''} transition-all duration-300`}>
         {state.currentConversation ? (
           <>
             {/* Chat header */}
             <div className="bg-white border-b border-gray-200 p-4">
-              <div>
-                <h3 className="font-semibold text-gray-900">
-                  {state.currentConversation.name}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {state.currentConversation.participants?.length || 0} participants
-                </p>
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900">
+                    {state.currentConversation.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {state.currentConversation.participants?.length || 0} participants
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDetailsPanel(!showDetailsPanel)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-4"
+                  title="Show details"
+                >
+                  <Info size={18} className="text-gray-500" />
+                </button>
               </div>
             </div>
+            
+            {/* Details Panel */}
+            {showDetailsPanel && (
+              <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l border-gray-200 rounded-l-xl z-10 overflow-y-auto">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 truncate">{state.currentConversation.name}</h3>
+                  <button
+                    onClick={() => setShowDetailsPanel(false)}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                  >
+                    <X size={18} className="text-gray-500" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4">
+                  {state.currentConversation.description && (
+                    <div>
+                      <p className="text-sm text-gray-900">{state.currentConversation.description}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium">{state.currentConversation.participants?.length || 0}</span> {state.currentConversation.participants?.length === 1 ? 'Participant' : 'Participants'}
+                    </p>
+                  </div>
+                  
+                  {state.currentConversation.creator && (
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Created by{' '}
+                        <span className="font-medium">{state.currentConversation.creator.name}</span>
+                        {state.currentConversation.creator.avatar && (
+                          <img
+                            src={state.currentConversation.creator.avatar}
+                            alt={state.currentConversation.creator.name}
+                            className="w-5 h-5 rounded-full inline-block ml-1.5 align-middle"
+                          />
+                        )}
+                        {' '}on {formatDate(state.currentConversation.createdAt)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {state.currentConversation.topics && state.currentConversation.topics.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Tags</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {(showAllTags ? state.currentConversation.topics : state.currentConversation.topics.slice(0, 5)).map((topic) => (
+                          <span
+                            key={topic}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                          >
+                            {topic}
+                          </span>
+                        ))}
+                        {!showAllTags && state.currentConversation.topics.length > 5 && (
+                          <button
+                            onClick={() => setShowAllTags(true)}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full hover:bg-gray-200 transition-colors"
+                          >
+                            +{state.currentConversation.topics.length - 5} more
+                          </button>
+                        )}
+                        {showAllTags && (
+                          <button
+                            onClick={() => setShowAllTags(false)}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full hover:bg-gray-200 transition-colors"
+                          >
+                            Show less
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Action Buttons */}
+                  {state.currentConversation && (
+                    <div className="pt-4 border-t border-gray-200 space-y-2">
+                      {state.user?.id === state.currentConversation.creatorId && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              if (state.currentConversation) {
+                                handleEditConversation(state.currentConversation, e);
+                                setShowDetailsPanel(false);
+                              }
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                          >
+                            <Edit size={16} />
+                            <span>Edit Conversation</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              if (state.currentConversation) {
+                                handleDeleteConversation(state.currentConversation, e);
+                                setShowDetailsPanel(false);
+                              }
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-full hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                            <span>Delete Conversation</span>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          if (state.currentConversation) {
+                            handleShareConversation(state.currentConversation, e);
+                          }
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                      >
+                        <Share2 size={16} />
+                        <span>Share Conversation</span>
+                      </button>
+                      {state.user?.id !== state.currentConversation.creatorId && (
+                        <button
+                          onClick={(e) => {
+                            if (state.currentConversation) {
+                              handleLeaveConversation(state.currentConversation, e);
+                              setShowDetailsPanel(false);
+                            }
+                          }}
+                          className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-full hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          <span>Leave Conversation</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
