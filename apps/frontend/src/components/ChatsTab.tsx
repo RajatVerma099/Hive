@@ -511,7 +511,7 @@ export const ChatsTab: React.FC = () => {
                     const isPending = pendingMessages.has(message.id);
                     
                     return (
-                      <div key={message.id} className="message-enter">
+                      <div key={message.id} className="message-enter mb-0">
                         <MessageBubble
                           content={message.content}
                           timestamp={message.createdAt}

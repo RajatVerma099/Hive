@@ -35,53 +35,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     : 'flex justify-start';
 
   const bubbleClasses = isSent && !isPending
-    ? 'bg-green-500 text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm'
+    ? 'bg-primary-600 text-white rounded-xl'
     : isSent && isPending
-    ? 'bg-gray-300 text-gray-800 rounded-l-2xl rounded-tr-2xl rounded-br-sm opacity-70'
-    : 'bg-gray-200 text-gray-900 rounded-r-2xl rounded-tl-2xl rounded-bl-sm';
+    ? 'bg-gray-300 text-gray-800 rounded-xl opacity-70'
+    : 'bg-gray-100 text-gray-900 rounded-xl border border-gray-200';
 
   return (
-    <div className={`${alignmentClasses} items-end`}>
-      {/* Profile icon to the left (only for received messages) */}
-      {!isSent && showSenderInfo && (
-        <div className="flex-shrink-0 mr-2 mb-1">
-          {senderAvatar ? (
-            <img
-              src={senderAvatar}
-              alt={senderName}
-              className="w-6 h-6 rounded-full"
-            />
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-xs font-medium text-primary-700">
-                {senderName?.charAt(0) || 'U'}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-      
-      <div className={`max-w-[70%] ${isSent ? '' : 'flex flex-col'}`}>
-        <div className={`px-2 py-1.5 ${bubbleClasses} relative`}>
-          {/* Sender name inside bubble at top left (only for received messages) */}
-          {!isSent && showSenderInfo && (
-            <div className="mb-1">
-              <span className={`text-xs font-semibold ${isSent ? 'text-white' : 'text-green-600'}`}>
-                {senderName || 'Unknown User'}
-              </span>
-            </div>
-          )}
-          
-          <p className={`text-sm whitespace-pre-wrap break-words ${!isSent && showSenderInfo ? 'mt-0.5' : ''}`}>
+    <div className={`${alignmentClasses} items-start`}>
+      <div className={`max-w-[75%] ${isSent ? '' : 'flex flex-col'}`}>
+        <div className={`px-1.5 py-0.5 ${bubbleClasses} relative`}>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
             {content}
           </p>
           
-          <div className="flex items-center justify-end mt-0.5 space-x-1">
-            <span className={`text-xs ${isSent && !isPending ? 'text-white opacity-90' : 'text-gray-500'}`}>
+          {/* Inline metadata: Sender · Time */}
+          <div className="flex items-center gap-1 mt-0.5">
+            {!isSent && showSenderInfo && (
+              <>
+                <span className={`text-[10px] ${isSent ? 'text-white/80' : 'text-gray-500'}`}>
+                  {senderName || 'Unknown User'}
+                </span>
+                <span className={`text-[10px] ${isSent ? 'text-white/60' : 'text-gray-400'}`}>
+                  ·
+                </span>
+              </>
+            )}
+            <span className={`text-[10px] ${isSent && !isPending ? 'text-white/80' : 'text-gray-500'}`}>
               {formatTime(timestamp)}
             </span>
             {isPending && (
-              <span className="text-xs text-gray-500">⏱</span>
+              <span className="text-[10px] text-gray-500">⏱</span>
             )}
           </div>
         </div>
