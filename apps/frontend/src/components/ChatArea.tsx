@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Info, MessageCircle } from 'lucide-react';
+import { Info, MessageCircle, Send } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import type { Conversation, Fade, Message, FadeMessage, User } from '../types';
 
@@ -42,6 +42,65 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages.length]);
+
+  // Helper function to format date label as "Sep 12, 1984"
+  const formatDateLabel = (date: Date): string => {
+    const messageDate = new Date(date);
+    const options: Intl.DateTimeFormatOptions = {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    };
+    
+    return messageDate.toLocaleDateString('en-US', options);
+  };
+
+  // Group messages with date separators
+  const renderMessagesWithDateSeparators = () => {
+    const elements: React.ReactNode[] = [];
+    let lastDate: string | null = null;
+
+    messages.forEach((message) => {
+      const messageDate = new Date(message.createdAt);
+      const dateKey = `${messageDate.getFullYear()}-${messageDate.getMonth()}-${messageDate.getDate()}`;
+      
+      // Add date separator if this is a new day
+      if (lastDate !== dateKey) {
+        elements.push(
+          <div key={`date-${dateKey}`} className="flex items-center justify-center my-4">
+            <div className="relative flex items-center w-full py-2">
+              <div className="flex-1 border-t border-gray-300"></div>
+              <div className="px-3 bg-white text-gray-600 text-xs font-medium">
+                {formatDateLabel(messageDate)}
+              </div>
+              <div className="flex-1 border-t border-gray-300"></div>
+            </div>
+          </div>
+        );
+        lastDate = dateKey;
+      }
+
+      // Add the message
+      const isSent = message.userId === currentUser?.id;
+      const isPending = pendingMessages.has(message.id);
+      
+      elements.push(
+        <div key={message.id} className="message-enter mb-0">
+          <MessageBubble
+            content={message.content}
+            timestamp={message.createdAt}
+            isSent={isSent}
+            isPending={isPending}
+            senderName={message.user?.name}
+            senderAvatar={message.user?.avatar}
+            showSenderInfo={!isSent}
+          />
+        </div>
+      );
+    });
+
+    return elements;
+  };
 
   if (!item) {
     return (
@@ -94,24 +153,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         ) : messages.length > 0 ? (
           <>
-            {messages.map((message) => {
-              const isSent = message.userId === currentUser?.id;
-              const isPending = pendingMessages.has(message.id);
-              
-              return (
-                <div key={message.id} className="message-enter mb-0">
-                  <MessageBubble
-                    content={message.content}
-                    timestamp={message.createdAt}
-                    isSent={isSent}
-                    isPending={isPending}
-                    senderName={message.user?.name}
-                    senderAvatar={message.user?.avatar}
-                    showSenderInfo={!isSent}
-                  />
-                </div>
-              );
-            })}
+            {renderMessagesWithDateSeparators()}
             {/* Typing indicator */}
             {typingUsers && typingUsers.size > 0 && (
               <div className="flex items-center space-x-2 text-sm text-gray-500 pt-2">
@@ -142,21 +184,25 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Message input */}
       <div className="bg-white border-t border-gray-200 p-4">
-        <form onSubmit={onSendMessage} className="flex space-x-3">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => onMessageChange(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={!newMessage.trim()}
-            className="px-6 py-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Send
-          </button>
+        <form onSubmit={onSendMessage} className="relative">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => onMessageChange(e.target.value)}
+              placeholder="Type a message..."
+              className="w-full pl-4 pr-20 py-2.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+            />
+            <button
+              type="submit"
+              disabled={!newMessage.trim()}
+              className="absolute right-2 px-4 py-1.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              title="Send message"
+            >
+              <Send size={16} className="flex-shrink-0" />
+              <span className="text-sm font-medium">Send</span>
+            </button>
+          </div>
         </form>
       </div>
     </>

@@ -24,3 +24,17 @@ export const formatDate = (dateString: string, includeTime: boolean = false): st
   return `${month} ${day}, ${year}`;
 };
 
+/**
+ * Format time in 12-hour format with AM/PM
+ * @param dateString - ISO date string
+ * @returns Formatted time string (e.g., "3:45 PM" or "11:30 AM")
+ */
+export const formatTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12; // Convert to 12-hour format, 0 becomes 12
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+

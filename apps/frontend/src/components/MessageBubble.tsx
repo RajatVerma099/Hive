@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTime } from '../utils/dateFormat';
 
 interface MessageBubbleProps {
   content: string;
@@ -19,12 +20,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   senderAvatar,
   showSenderInfo = false,
 }) => {
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
 
   // For sent messages, align to right; for received, align to left
   // If pending, show with slight left indentation (shifted from right)
