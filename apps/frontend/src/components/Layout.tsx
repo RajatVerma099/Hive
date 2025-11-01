@@ -15,7 +15,7 @@ interface LayoutProps {
 }
 
 const floatingTabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-  { id: 'chats', label: 'Chats', icon: <MessageCircle size={24} /> },
+  { id: 'conversations', label: 'Conversations', icon: <MessageCircle size={24} /> },
   { id: 'discover', label: 'Discover', icon: <Search size={24} /> },
   { id: 'fades', label: 'Fades', icon: <Clock size={24} /> },
 ];

@@ -3,7 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider } from './context/AuthContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { Layout } from './components/Layout';
-import { ChatsTab } from './components/ChatsTab';
+import { ConversationsTab } from './components/ConversationsTab';
 import { DiscoverTab } from './components/DiscoverTab';
 import { FadesTab } from './components/FadesTab';
 import { NotebookTab } from './components/NotebookTab';
@@ -14,8 +14,8 @@ const AppContent: React.FC = () => {
 
   const renderActiveTab = () => {
     switch (activeTab) {
-      case 'chats':
-        return <ChatsTab />;
+      case 'conversations':
+        return <ConversationsTab />;
       case 'discover':
         return <DiscoverTab />;
       case 'fades':
@@ -25,7 +25,7 @@ const AppContent: React.FC = () => {
       case 'profile':
         return <ProfileTab />;
       default:
-        return <ChatsTab />;
+        return <ConversationsTab />;
     }
   };
 

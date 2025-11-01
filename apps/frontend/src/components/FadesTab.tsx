@@ -3,25 +3,10 @@ import { useApp } from '../context/AppContext';
 import { useSocket } from '../hooks/useSocket';
 import { apiService } from '../services/api';
 import { CreateFadeModal } from './CreateFadeModal';
-import { MessageBubble } from './MessageBubble';
+import { ChatListPane } from './ChatListPane';
+import { DetailsPane } from './DetailsPane';
+import { ChatArea } from './ChatArea';
 import type { Fade, FadeMessage } from '../types';
-import { formatDate } from '../utils/dateFormat';
-import { 
-  Plus, 
-  Search, 
-  MoreVertical, 
-  Users,
-  Hash,
-  MessageCircle,
-  Edit,
-  Trash2,
-  LogOut,
-  Share2,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  X
-} from 'lucide-react';
 
 export const FadesTab: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -32,15 +17,11 @@ export const FadesTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingFade, setEditingFade] = useState<Fade | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [pendingMessages, setPendingMessages] = useState<Map<string, FadeMessage>>(new Map());
   const pendingMessageIdRef = useRef(0);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isFadesListCollapsed, setIsFadesListCollapsed] = useState(false);
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
-  const [showAllTags, setShowAllTags] = useState(false);
 
   // Load fades from API
   useEffect(() => {
@@ -71,7 +52,6 @@ export const FadesTab: React.FC = () => {
       // Clear pending messages when switching fades
       setPendingMessages(new Map());
       setShowDetailsPanel(false);
-      setShowAllTags(false);
       
       // Leave current fade if switching
       if (state.currentFade) {
@@ -110,16 +90,6 @@ export const FadesTab: React.FC = () => {
     }
   };
   
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
-  useEffect(() => {
-    if (state.currentFade?.messages) {
-      scrollToBottom();
-    }
-  }, [state.currentFade?.messages?.length]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,11 +153,6 @@ export const FadesTab: React.FC = () => {
       }
       
       setNewMessage('');
-      
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
       // Remove failed message from UI
@@ -211,61 +176,16 @@ export const FadesTab: React.FC = () => {
     }
   };
 
-  const refreshFades = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const fades = await apiService.getFades() as Fade[];
-      dispatch({ type: 'SET_FADES', payload: fades });
-      
-      // Update current fade if it exists
-      if (state.currentFade) {
-        const updatedFade = fades.find(f => f.id === state.currentFade?.id);
-        if (updatedFade) {
-          const messages = state.currentFade.messages || [];
-          dispatch({ type: 'SET_CURRENT_FADE', payload: { ...updatedFade, messages } });
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing fades:', error);
-      setError('Failed to refresh fades');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const filteredFades = state.fades.filter(fade =>
-    fade.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    fade.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    fade.topics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // Check if click is outside any menu
-      if (!target.closest('.fade-menu')) {
-        setMenuOpenId(null);
-      }
-    };
-
-    if (menuOpenId) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [menuOpenId]);
 
   const handleEditFade = (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpenId(null);
     setEditingFade(fade);
     setShowCreateModal(true);
   };
 
   const handleDeleteFade = async (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpenId(null);
     
     if (!window.confirm('Are you sure you want to delete this fade? This action cannot be undone.')) {
       return;
@@ -281,7 +201,6 @@ export const FadesTab: React.FC = () => {
 
   const handleLeaveFade = async (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpenId(null);
     
     try {
       await apiService.leaveFade(fade.id);
@@ -298,7 +217,6 @@ export const FadesTab: React.FC = () => {
 
   const handleShareFade = (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpenId(null);
     // Placeholder for future share functionality
     console.log('Share fade:', fade.id);
     // TODO: Implement share functionality
@@ -332,481 +250,78 @@ export const FadesTab: React.FC = () => {
     return 'text-green-600 bg-green-100';
   };
 
+  const getExpiryBadge = (fade: Fade) => (
+    <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getExpiryColor(fade.expiresAt)}`}>
+      {getTimeRemaining(fade.expiresAt)}
+    </div>
+  );
+
+  const getExpiryBadgeForHeader = () => {
+    if (!state.currentFade) return null;
+    return (
+      <div className={`px-2 py-1 rounded-full text-xs font-medium ${getExpiryColor(state.currentFade.expiresAt)}`}>
+        {getTimeRemaining(state.currentFade.expiresAt)}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-full relative">
-      {/* Fades list */}
-      <div 
-        className={`bg-white flex flex-col transition-all duration-300 ease-in-out relative ${
-          isFadesListCollapsed 
-            ? 'w-1.5 bg-white/70 shadow-sm z-20' 
-            : 'w-80 border-r border-gray-200 rounded-r-xl'
-        }`}
-      >
-        {/* Header */}
-        {!isFadesListCollapsed && (
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-semibold text-gray-900">Fades</h2>
-            </div>
-            <button 
-              onClick={() => setShowCreateModal(true)}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              <Plus size={20} className="text-gray-600" />
-            </button>
-          </div>
-          
-          {/* Search */}
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search fades..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-        )}
-
-        {/* Fades list */}
-        {!isFadesListCollapsed && (
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
-              <p className="text-gray-500">Loading fades...</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <MessageCircle size={48} className="text-red-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Error loading fades
-              </h3>
-              <p className="text-gray-500 max-w-md mb-4">
-                {error}
-              </p>
-              <button 
-                onClick={refreshFades}
-                className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : filteredFades.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <MessageCircle size={48} className="text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchQuery ? 'No fades found' : 'No fades yet'}
-              </h3>
-              <p className="text-gray-500 max-w-md mb-4">
-                {searchQuery 
-                  ? 'Try adjusting your search terms'
-                  : 'Create a fade to begin chatting'
-                }
-              </p>
-              {!searchQuery && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create Fade</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredFades.map((fade) => {
-              const maxVisibleTags = 2;
-              const visibleTags = fade.topics.slice(0, maxVisibleTags);
-              const remainingTagsCount = fade.topics.length - maxVisibleTags;
-              
-              return (
-              <div
-                key={fade.id}
-                onClick={() => handleJoinFade(fade)}
-                className={`p-2.5 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  state.currentFade?.id === fade.id ? 'bg-primary-50 border-primary-200' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-1.5 mb-0.5">
-                      <Hash size={14} className="text-gray-400 flex-shrink-0" />
-                      <h3 className="font-medium text-gray-900 truncate text-sm">
-                        {fade.name}
-                      </h3>
-                      <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getExpiryColor(fade.expiresAt)}`}>
-                        {getTimeRemaining(fade.expiresAt)}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1 text-xs text-gray-400">
-                      <div className="flex items-center space-x-1">
-                        <Users size={11} />
-                        <span>{fade.participants?.length || 0}</span>
-                      </div>
-                      {fade.topics.length > 0 && (
-                        <div className="flex items-center space-x-1">
-                          <span>•</span>
-                          <span>{fade.topics.length} tags</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="relative fade-menu">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuOpenId(menuOpenId === fade.id ? null : fade.id);
-                      }}
-                      className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                    >
-                      <MoreVertical size={14} className="text-gray-400" />
-                    </button>
-                    {menuOpenId === fade.id && (
-                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 fade-menu">
-                        {state.user?.id === fade.creatorId && (
-                          <>
-                            <button
-                              onClick={(e) => handleEditFade(fade, e)}
-                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                              <Edit size={16} />
-                              <span>Edit Fade</span>
-                            </button>
-                            <button
-                              onClick={(e) => handleDeleteFade(fade, e)}
-                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                              <span>Delete Fade</span>
-                            </button>
-                            <div className="border-t border-gray-200 my-1"></div>
-                          </>
-                        )}
-                        <button
-                          onClick={(e) => handleShareFade(fade, e)}
-                          className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Share2 size={16} />
-                          <span>Share Fade</span>
-                        </button>
-                        {state.user?.id !== fade.creatorId && (
-                          <button
-                            onClick={(e) => handleLeaveFade(fade, e)}
-                            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <LogOut size={16} />
-                            <span>Leave Fade</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Topics */}
-                {fade.topics.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {visibleTags.map((topic) => (
-                      <span
-                        key={topic}
-                        className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                      >
-                        {topic}
-                      </span>
-                    ))}
-                    {remainingTagsCount > 0 && (
-                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
-                        +{remainingTagsCount} more
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              );
-            })
-          )}
-        </div>
-        )}
-      </div>
-
-      {/* Collapse/Expand Button */}
-      <button
-        onClick={() => setIsFadesListCollapsed(!isFadesListCollapsed)}
-        className={`absolute top-[104px] z-30 w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 transition-all duration-300 ${
-          isFadesListCollapsed 
-            ? 'left-1.5 -translate-x-1/2' 
-            : 'left-80 -translate-x-1/2'
-        }`}
-        title={isFadesListCollapsed ? 'Expand fades' : 'Collapse fades'}
-      >
-        {isFadesListCollapsed ? (
-          <ChevronRight size={16} className="text-gray-600" />
-        ) : (
-          <ChevronLeft size={16} className="text-gray-600" />
-        )}
-      </button>
+      <ChatListPane<Fade>
+        title="Fades"
+        items={state.fades}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        currentItem={state.currentFade}
+        onItemSelect={handleJoinFade}
+        onEdit={handleEditFade}
+        onDelete={handleDeleteFade}
+        onShare={handleShareFade}
+        onLeave={handleLeaveFade}
+        onCreateClick={() => setShowCreateModal(true)}
+        isLoading={isLoading}
+        error={error}
+        emptyStateTitle={searchQuery ? 'No fades found' : 'No fades yet'}
+        emptyStateMessage={searchQuery 
+          ? 'Try adjusting your search terms'
+          : 'Create a fade to begin chatting'
+        }
+        currentUserId={state.user?.id}
+        isCollapsed={isFadesListCollapsed}
+        onToggleCollapse={() => setIsFadesListCollapsed(!isFadesListCollapsed)}
+        getExpiryBadge={getExpiryBadge}
+        menuClassName="fade-menu"
+      />
 
       {/* Chat area */}
       <div className={`flex-1 flex flex-col relative ${showDetailsPanel && state.currentFade ? 'pr-80' : ''} transition-all duration-300`}>
-        {state.currentFade ? (
-          <>
-            {/* Chat header */}
-            <div className="bg-white border-b border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900">
-                    {state.currentFade.name}
-                  </h3>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <p className="text-sm text-gray-500">
-                      {state.currentFade.participants?.length || 0} participants
-                    </p>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${getExpiryColor(state.currentFade.expiresAt)}`}>
-                      {getTimeRemaining(state.currentFade.expiresAt)}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowDetailsPanel(!showDetailsPanel)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-4"
-                  title="Show details"
-                >
-                  <Info size={18} className="text-gray-500" />
-                </button>
-              </div>
-            </div>
-            
-            {/* Details Panel */}
-            {showDetailsPanel && (
-              <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l border-gray-200 rounded-l-xl z-10 overflow-y-auto">
-                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900 truncate">{state.currentFade.name}</h3>
-                  <button
-                    onClick={() => setShowDetailsPanel(false)}
-                    className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
-                  >
-                    <X size={18} className="text-gray-500" />
-                  </button>
-                </div>
-                <div className="p-4 space-y-4">
-                  {state.currentFade.description && (
-                    <div>
-                      <p className="text-sm text-gray-900">{state.currentFade.description}</p>
-                    </div>
-                  )}
-                  
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">{state.currentFade.participants?.length || 0}</span> {state.currentFade.participants?.length === 1 ? 'Participant' : 'Participants'}
-                    </p>
-                  </div>
-                  
-                  {state.currentFade.creator && (
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Created by{' '}
-                        <span className="font-medium">{state.currentFade.creator.name}</span>
-                        {state.currentFade.creator.avatar && (
-                          <img
-                            src={state.currentFade.creator.avatar}
-                            alt={state.currentFade.creator.name}
-                            className="w-5 h-5 rounded-full inline-block ml-1.5 align-middle"
-                          />
-                        )}
-                        {' '}on {formatDate(state.currentFade.createdAt)}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* Expiry timestamp for fades - significant sized center aligned */}
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="text-center">
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Expires</h4>
-                      <p className="text-2xl font-semibold text-gray-900 mb-1">
-                        {formatDate(state.currentFade.expiresAt, true)}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {state.currentFade.topics && state.currentFade.topics.length > 0 && (
-                    <div className="pt-4 border-t border-gray-200">
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Tags</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {(showAllTags ? state.currentFade.topics : state.currentFade.topics.slice(0, 5)).map((topic) => (
-                          <span
-                            key={topic}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                          >
-                            {topic}
-                          </span>
-                        ))}
-                        {!showAllTags && state.currentFade.topics.length > 5 && (
-                          <button
-                            onClick={() => setShowAllTags(true)}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full hover:bg-gray-200 transition-colors"
-                          >
-                            +{state.currentFade.topics.length - 5} more
-                          </button>
-                        )}
-                        {showAllTags && (
-                          <button
-                            onClick={() => setShowAllTags(false)}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full hover:bg-gray-200 transition-colors"
-                          >
-                            Show less
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Action Buttons */}
-                  {state.currentFade && (
-                    <div className="pt-4 border-t border-gray-200 space-y-2">
-                      {state.user?.id === state.currentFade.creatorId && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              if (state.currentFade) {
-                                handleEditFade(state.currentFade, e);
-                                setShowDetailsPanel(false);
-                              }
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
-                          >
-                            <Edit size={16} />
-                            <span>Edit Fade</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              if (state.currentFade) {
-                                handleDeleteFade(state.currentFade, e);
-                                setShowDetailsPanel(false);
-                              }
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-full hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                            <span>Delete Fade</span>
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          if (state.currentFade) {
-                            handleShareFade(state.currentFade, e);
-                          }
-                        }}
-                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
-                      >
-                        <Share2 size={16} />
-                        <span>Share Fade</span>
-                      </button>
-                      {state.user?.id !== state.currentFade.creatorId && (
-                        <button
-                          onClick={(e) => {
-                            if (state.currentFade) {
-                              handleLeaveFade(state.currentFade, e);
-                              setShowDetailsPanel(false);
-                            }
-                          }}
-                          className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-full hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut size={16} />
-                          <span>Leave Fade</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Messages */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
-              {isLoadingMessages ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                    <p className="text-gray-500">Loading messages...</p>
-                  </div>
-                </div>
-              ) : state.currentFade.messages && state.currentFade.messages.length > 0 ? (
-                <>
-                  {state.currentFade.messages.map((message) => {
-                    const isSent = message.userId === state.user?.id;
-                    const isPending = pendingMessages.has(message.id);
-                    
-                    return (
-                      <div key={message.id} className="message-enter mb-0">
-                        <MessageBubble
-                          content={message.content}
-                          timestamp={message.createdAt}
-                          isSent={isSent}
-                          isPending={isPending}
-                          senderName={message.user?.name}
-                          senderAvatar={message.user?.avatar}
-                          showSenderInfo={!isSent}
-                        />
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Scroll anchor */}
-                  <div ref={messagesEndRef} />
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <MessageCircle size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No messages yet
-                    </h3>
-                    <p className="text-gray-500">
-                      Be the first to send a message in this fade
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Message input */}
-            <div className="bg-white border-t border-gray-200 p-4">
-              <form onSubmit={handleSendMessage} className="flex space-x-3">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="px-6 py-2 bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageCircle size={48} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a fade
-              </h3>
-              <p className="text-gray-500">
-                Choose a fade from the sidebar to start chatting
-              </p>
-            </div>
-          </div>
-        )}
+        <ChatArea
+          item={state.currentFade}
+          messages={state.currentFade?.messages || []}
+          currentUser={state.user}
+          isLoadingMessages={isLoadingMessages}
+          pendingMessages={new Set(Array.from(pendingMessages.keys()))}
+          newMessage={newMessage}
+          onMessageChange={setNewMessage}
+          onSendMessage={handleSendMessage}
+          onInfoClick={() => setShowDetailsPanel(!showDetailsPanel)}
+          showExpiryBadge={true}
+          getExpiryBadge={getExpiryBadgeForHeader}
+          itemType="fade"
+        />
+        
+        <DetailsPane<Fade>
+          item={state.currentFade}
+          isOpen={showDetailsPanel}
+          onClose={() => setShowDetailsPanel(false)}
+          onEdit={handleEditFade}
+          onDelete={handleDeleteFade}
+          onShare={handleShareFade}
+          onLeave={handleLeaveFade}
+          currentUserId={state.user?.id}
+          showExpiry={true}
+          itemType="fade"
+        />
       </div>
 
       {/* Create Fade Modal */}
@@ -838,8 +353,30 @@ export const FadesTab: React.FC = () => {
           }
         }}
         onDeleted={() => {
-          // Refresh fades list
-          refreshFades();
+          // Reload fades
+          const loadFades = async () => {
+            try {
+              setIsLoading(true);
+              setError(null);
+              const fades = await apiService.getFades() as Fade[];
+              dispatch({ type: 'SET_FADES', payload: fades });
+              
+              // Update current fade if it exists
+              if (state.currentFade) {
+                const updatedFade = fades.find(f => f.id === state.currentFade?.id);
+                if (updatedFade) {
+                  const messages = state.currentFade.messages || [];
+                  dispatch({ type: 'SET_CURRENT_FADE', payload: { ...updatedFade, messages } });
+                }
+              }
+            } catch (error) {
+              console.error('Error refreshing fades:', error);
+              setError('Failed to refresh fades');
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          loadFades();
         }}
       />
     </div>

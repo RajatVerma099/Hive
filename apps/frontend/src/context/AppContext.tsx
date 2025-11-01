@@ -39,7 +39,7 @@ const initialState: AppState = {
   notebook: [],
   isConnected: false,
   typingUsers: new Set(),
-  activeTab: 'chats',
+  activeTab: 'conversations',
 };
 
 // Reducer

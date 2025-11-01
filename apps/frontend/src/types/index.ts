@@ -161,7 +161,7 @@ export interface AppState {
 }
 
 // Tab types
-export type TabType = 'chats' | 'discover' | 'fades' | 'notebook' | 'profile';
+export type TabType = 'conversations' | 'discover' | 'fades' | 'notebook' | 'profile';
 
 // Search filters
 export interface SearchFilters {

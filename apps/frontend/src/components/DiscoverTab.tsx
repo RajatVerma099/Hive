@@ -75,8 +75,8 @@ export const DiscoverTab: React.FC = () => {
       // Refresh discover data to update join status
       await refreshData();
       
-      // Switch to Chats tab
-      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'chats' });
+      // Switch to Conversations tab
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: 'conversations' });
     } catch (error) {
       console.error('Error joining conversation:', error);
       // Could show error toast here
