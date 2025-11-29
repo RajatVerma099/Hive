@@ -26,7 +26,7 @@ interface SocketEvents {
   'error': (error: string) => void;
 }
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3002';
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
