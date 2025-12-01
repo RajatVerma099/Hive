@@ -152,8 +152,6 @@ export interface AppState {
   currentFade: Fade | null;
   conversations: Conversation[]; // User's conversations
   fades: Fade[]; // User's fades
-  discoverConversations: Conversation[]; // Public conversations for discovery
-  discoverFades: Fade[]; // Public fades for discovery
   notebook: Notebook[];
   isConnected: boolean;
   typingUsers: Set<string>;
@@ -161,7 +159,7 @@ export interface AppState {
 }
 
 // Tab types
-export type TabType = 'conversations' | 'discover' | 'fades' | 'notebook' | 'profile';
+export type TabType = 'chats' | 'notebook' | 'profile';
 
 // Search filters
 export interface SearchFilters {

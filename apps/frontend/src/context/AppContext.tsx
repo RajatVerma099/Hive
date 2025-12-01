@@ -16,8 +16,6 @@ type AppAction =
   | { type: 'ADD_FADE'; payload: Fade }
   | { type: 'UPDATE_FADE'; payload: Fade }
   | { type: 'REMOVE_FADE'; payload: string } // Fade ID
-  | { type: 'SET_DISCOVER_CONVERSATIONS'; payload: Conversation[] } // Discover conversations
-  | { type: 'SET_DISCOVER_FADES'; payload: Fade[] } // Discover fades
   | { type: 'SET_NOTEBOOK'; payload: Notebook[] }
   | { type: 'ADD_TO_NOTEBOOK'; payload: Notebook }
   | { type: 'REMOVE_FROM_NOTEBOOK'; payload: string }
@@ -34,12 +32,10 @@ const initialState: AppState = {
   currentFade: null,
   conversations: [], // User's conversations
   fades: [], // User's fades
-  discoverConversations: [], // Public conversations for discovery
-  discoverFades: [], // Public fades for discovery
   notebook: [],
   isConnected: false,
   typingUsers: new Set(),
-  activeTab: 'conversations',
+  activeTab: 'chats',
 };
 
 // Reducer
@@ -108,12 +104,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
           ? null 
           : state.currentFade,
       };
-    
-    case 'SET_DISCOVER_CONVERSATIONS':
-      return { ...state, discoverConversations: action.payload };
-    
-    case 'SET_DISCOVER_FADES':
-      return { ...state, discoverFades: action.payload };
     
     case 'SET_NOTEBOOK':
       return { ...state, notebook: action.payload };
@@ -225,8 +215,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dispatch({ type: 'SET_CURRENT_FADE', payload: null });
       dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
       dispatch({ type: 'SET_FADES', payload: [] });
-      dispatch({ type: 'SET_DISCOVER_CONVERSATIONS', payload: [] });
-      dispatch({ type: 'SET_DISCOVER_FADES', payload: [] });
       dispatch({ type: 'SET_NOTEBOOK', payload: [] });
       dispatch({ type: 'SET_TYPING_USERS', payload: new Set() });
     }
