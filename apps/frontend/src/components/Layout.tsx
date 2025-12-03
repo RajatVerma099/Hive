@@ -15,9 +15,10 @@ import { useSocket } from '../hooks/useSocket';
 
 interface LayoutProps {
   children: React.ReactNode;
+  onOpenProfile: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile }) => {
   const { state, activeTab, setActiveTab, dispatch } = useApp();
   const { joinConversation, leaveConversation } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -145,12 +146,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* User avatar - clickable for profile */}
               {state.user && (
                 <button
-                  onClick={() => setActiveTab(activeTab === 'profile' ? 'chats' : 'profile')}
-                  className={`p-1 rounded-full transition-colors ${
-                    activeTab === 'profile'
-                      ? 'bg-primary-50 border-2 border-primary-200'
-                      : 'hover:bg-gray-50'
-                  }`}
+                  onClick={onOpenProfile}
+                  className="p-1 rounded-full transition-colors hover:bg-gray-50"
                   title="Profile"
                 >
                   <img

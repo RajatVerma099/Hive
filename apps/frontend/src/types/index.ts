@@ -159,7 +159,7 @@ export interface AppState {
 }
 
 // Tab types
-export type TabType = 'chats' | 'notebook' | 'profile';
+export type TabType = 'chats' | 'notebook';
 
 // Search filters
 export interface SearchFilters {

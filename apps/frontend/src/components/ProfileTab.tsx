@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
@@ -14,7 +14,12 @@ import {
   Globe
 } from 'lucide-react';
 
-export const ProfileTab: React.FC = () => {
+interface ProfileTabProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
   const { state, dispatch } = useApp();
   const { logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -23,6 +28,17 @@ export const ProfileTab: React.FC = () => {
     displayName: state.user?.displayName || '',
     email: state.user?.email || '',
   });
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   const handleSave = () => {
     if (state.user) {
@@ -47,43 +63,76 @@ export const ProfileTab: React.FC = () => {
 
   const handleLogout = () => {
     logout();
+    onClose();
   };
+
+  if (!isOpen) return null;
 
   if (!state.user) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <UserIcon size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Not logged in
-          </h3>
-          <p className="text-gray-500">
-            Please log in to view your profile
-          </p>
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center">
+            <UserIcon size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Not logged in
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Please log in to view your profile
+            </p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-1 px-3 py-1 text-red-600 hover:bg-red-50 rounded-full transition-colors"
-          >
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-1 px-3 py-1 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-5xl mx-auto space-y-6">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
           {/* Profile Header - Instagram style - spans full width */}
           <div className="flex items-start space-x-6">
             {/* Profile Picture */}
@@ -109,22 +158,6 @@ export const ProfileTab: React.FC = () => {
                   {state.user.name}
                 </h3>
                 <p className="text-gray-500">@{state.user.displayName || state.user.name.toLowerCase().replace(/\s+/g, '')}</p>
-              </div>
-
-              {/* Activity Stats */}
-              <div className="flex space-x-6">
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {state.conversations.length}
-                  </p>
-                  <p className="text-sm text-gray-500">Conversations</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {state.notebook.length}
-                  </p>
-                  <p className="text-sm text-gray-500">Saved Messages</p>
-                </div>
               </div>
             </div>
           </div>
@@ -272,6 +305,7 @@ export const ProfileTab: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
