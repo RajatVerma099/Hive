@@ -408,13 +408,13 @@ export const ChatsView: React.FC = () => {
   );
 
   return (
-    <div className="flex h-full relative">
+    <div className="flex h-full relative px-4">
       {/* Custom Sidebar with Conversations and Fades */}
       <div 
         className={`bg-white flex flex-col h-full transition-all duration-300 ease-in-out relative ${
           isConversationsListCollapsed 
             ? 'w-1.5 bg-white/70 shadow-sm z-20' 
-            : 'w-80 border-r border-gray-200 rounded-r-xl'
+            : 'w-80 border-r border-gray-200 rounded-l-xl'
         }`}
       >
         {!isConversationsListCollapsed && (
@@ -689,7 +689,7 @@ export const ChatsView: React.FC = () => {
       </button>
 
       {/* Chat area */}
-      <div className={`flex-1 flex flex-col relative ${showDetailsPanel && (state.currentConversation || state.currentFade) ? 'pr-80' : ''} transition-all duration-300`}>
+      <div className={`flex-1 flex flex-col relative bg-white rounded-r-xl ${showDetailsPanel && (state.currentConversation || state.currentFade) ? 'pr-80' : ''} transition-all duration-300`}>
         {state.currentConversation ? (
           <>
             <ChatArea
