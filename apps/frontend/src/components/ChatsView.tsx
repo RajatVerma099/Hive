@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useSocket } from '../hooks/useSocket';
+import { useConversationActions } from '../hooks/useConversationActions';
+import { useFadeActions } from '../hooks/useFadeActions';
 import { apiService } from '../services/api';
 import { CreateConversationModal } from './CreateConversationModal';
 import { CreateFadeModal } from './CreateFadeModal';
 import { DetailsPane } from './DetailsPane';
 import { ChatArea } from './ChatArea';
-import { Hash, Users, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Search } from 'lucide-react';
+import { Hash, Users, ChevronLeft, ChevronRight, ChevronDown, Plus, Search } from 'lucide-react';
+import { getTimeRemaining, getExpiryColor } from '../utils/fadeUtils';
+import { filterConversations, filterFades } from '../utils/filterUtils';
 import type { Conversation, Message, Fade, FadeMessage } from '../types';
 
 export const ChatsView: React.FC = () => {
@@ -245,40 +249,25 @@ export const ChatsView: React.FC = () => {
 
   const handleDeleteConversation = async (conversation: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
-      return;
-    }
-
     try {
-      await apiService.deleteConversation(conversation.id);
-      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
+      await deleteConversation(conversation);
     } catch (error) {
-      console.error('Error deleting conversation:', error);
+      // Error already logged in hook
     }
   };
 
   const handleLeaveConversation = async (conversation: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
-    
     try {
-      await apiService.leaveConversation(conversation.id);
-      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
-      // Clear current conversation if it's the one we're leaving
-      if (state.currentConversation?.id === conversation.id) {
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
-        leaveConversation(conversation.id);
-      }
+      await leaveConversationAction(conversation);
     } catch (error) {
-      console.error('Error leaving conversation:', error);
+      // Error already logged in hook
     }
   };
 
   const handleShareConversation = (conversation: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Placeholder for future share functionality
-    console.log('Share conversation:', conversation.id);
-    // TODO: Implement share functionality
+    shareConversation(conversation);
   };
 
   const handleJoinFade = async (fade: Fade) => {
@@ -333,79 +322,32 @@ export const ChatsView: React.FC = () => {
 
   const handleDeleteFade = async (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!window.confirm('Are you sure you want to delete this fade? This action cannot be undone.')) {
-      return;
-    }
-
     try {
-      await apiService.deleteFade(fade.id);
-      dispatch({ type: 'REMOVE_FADE', payload: fade.id });
+      await deleteFade(fade);
     } catch (error) {
-      console.error('Error deleting fade:', error);
+      // Error already logged in hook
     }
   };
 
   const handleLeaveFade = async (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    
     try {
-      await apiService.leaveFade(fade.id);
-      dispatch({ type: 'REMOVE_FADE', payload: fade.id });
-      // Clear current fade if it's the one we're leaving
-      if (state.currentFade?.id === fade.id) {
-        dispatch({ type: 'SET_CURRENT_FADE', payload: null });
-        leaveConversation(fade.id);
-      }
+      await leaveFade(fade);
     } catch (error) {
-      console.error('Error leaving fade:', error);
+      // Error already logged in hook
     }
   };
 
   const handleShareFade = (fade: Fade, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Share fade:', fade.id);
+    shareFade(fade);
   };
 
-  const getTimeRemaining = (expiresAt: string) => {
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-    
-    if (diff <= 0) return 'Expired';
-    
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (days > 0) return `${days}d ${hours}h left`;
-    if (hours > 0) return `${hours}h ${minutes}m left`;
-    return `${minutes}m left`;
-  };
+  const { deleteConversation, leaveConversationAction, shareConversation } = useConversationActions();
+  const { deleteFade, leaveFade, shareFade } = useFadeActions();
 
-  const getExpiryColor = (expiresAt: string) => {
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-    const hours = diff / (1000 * 60 * 60);
-    
-    if (hours < 1) return 'text-red-600 bg-red-100';
-    if (hours < 6) return 'text-orange-600 bg-orange-100';
-    if (hours < 24) return 'text-yellow-600 bg-yellow-100';
-    return 'text-green-600 bg-green-100';
-  };
-
-  const filteredConversations = state.conversations.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (item.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    item.topics.some(topic => topic.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const filteredFades = state.fades.filter(item =>
-    item.name.toLowerCase().includes(fadeSearchQuery.toLowerCase()) ||
-    (item.description?.toLowerCase().includes(fadeSearchQuery.toLowerCase())) ||
-    item.topics.some(topic => topic.toLowerCase().includes(fadeSearchQuery.toLowerCase()))
-  );
+  const filteredConversations = filterConversations(state.conversations, searchQuery);
+  const filteredFades = filterFades(state.fades, fadeSearchQuery);
 
   return (
     <div className="flex h-full relative px-4">

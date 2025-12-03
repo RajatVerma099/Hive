@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { apiService } from '../services/api';
 import { useApp } from '../context/AppContext';
+import { useModal } from '../hooks/useModal';
+import { useTopics } from '../hooks/useTopics';
 import type { Conversation } from '../types';
-import { 
-  X, 
-  Hash, 
-  Info, 
-  Plus,
-  Edit,
-  Trash2,
-  X as CloseIcon
-} from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { FormInput } from './ui/FormInput';
+import { FormTextarea } from './ui/FormTextarea';
+import { TopicInput } from './forms/TopicInput';
 
 interface CreateConversationModalProps {
   isOpen: boolean;
@@ -20,24 +17,6 @@ interface CreateConversationModalProps {
   onDeleted?: () => void;
 }
 
-interface TopicPillProps {
-  topic: string;
-  onRemove: () => void;
-}
-
-const TopicPill: React.FC<TopicPillProps> = ({ topic, onRemove }) => (
-  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-xs font-semibold shadow-lg border border-blue-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
-    <Hash className="w-3 h-3" />
-    {topic}
-    <button
-      onClick={onRemove}
-      className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors duration-200"
-    >
-      <CloseIcon className="w-3 h-3" />
-    </button>
-  </div>
-);
-
 export const CreateConversationModal: React.FC<CreateConversationModalProps> = ({ 
   isOpen, 
   onClose,
@@ -45,69 +24,40 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
   onDeleted
 }) => {
   const { dispatch } = useApp();
+  const { renderPortal } = useModal(isOpen);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [defaultMute, setDefaultMute] = useState(false);
+  
+  const {
+    topics,
+    topicInput,
+    setTopicInput,
+    handleTopicKeyPress,
+    removeTopic,
+    resetTopics
+  } = useTopics();
+  
+  const isEditMode = !!conversation;
 
   // Pre-fill form when editing
   useEffect(() => {
     if (conversation && isOpen) {
       setName(conversation.name || '');
       setDescription(conversation.description || '');
-      setTopics(conversation.topics || []);
-      setTopicInput('');
-      setDefaultMute(false); // Note: defaultMute might not be available in conversation object
+      resetTopics(conversation.topics || []);
+      setDefaultMute(false);
     } else if (!conversation && isOpen) {
       // Reset form when creating new
       setName('');
       setDescription('');
-      setTopics([]);
-      setTopicInput('');
+      resetTopics([]);
       setDefaultMute(false);
     }
-  }, [conversation, isOpen]);
-
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [topics, setTopics] = useState<string[]>([]);
-  const [topicInput, setTopicInput] = useState('');
-  const [defaultMute, setDefaultMute] = useState(false);
-  
-  const isEditMode = !!conversation;
-
-  const handleTopicKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && topicInput.trim()) {
-      e.preventDefault();
-      const newTopic = topicInput.trim().toLowerCase();
-      if (!topics.includes(newTopic) && newTopic.length > 0 && newTopic.length <= 50) {
-        setTopics([...topics, newTopic]);
-        setTopicInput('');
-      }
-    }
-  };
-
-  const removeTopic = (topicToRemove: string) => {
-    setTopics(topics.filter(topic => topic !== topicToRemove));
-  };
+  }, [conversation, isOpen, resetTopics]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,8 +104,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       // Reset form
       setName('');
       setDescription('');
-      setTopics([]);
-      setTopicInput('');
+      resetTopics([]);
       setDefaultMute(false);
 
       onClose();
@@ -200,122 +149,58 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       // Reset form when closing
       setName('');
       setDescription('');
-      setTopics([]);
-      setTopicInput('');
+      resetTopics([]);
       setDefaultMute(false);
       setError(null);
       onClose();
     }
   };
 
-  if (!isOpen || !mounted) return null;
-
-  const modalContent = (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center animate-in fade-in duration-300" 
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        margin: 0,
-        padding: '1rem'
-      }}
+  return renderPortal(
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={isEditMode ? 'Edit Conversation' : 'Create New Conversation'}
+      subtitle={isEditMode ? 'Update conversation details' : 'Start a meaningful conversation with your community'}
+      icon={isEditMode ? <Edit className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
+      disabled={isSubmitting}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              {isEditMode ? <Edit className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {isEditMode ? 'Edit Conversation' : 'Create New Conversation'}
-              </h2>
-              <p className="text-gray-600 mt-0.5 text-sm">
-                {isEditMode ? 'Update conversation details' : 'Start a meaningful conversation with your community'}
-              </p>
-            </div>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">
+            {error}
           </div>
-          <button
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
+        {/* Name */}
+        <FormInput
+          label="Conversation Name *"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Enter conversation name"
+          required
+        />
 
-          {/* Name */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Conversation Name *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter conversation name"
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
-              required
-            />
-          </div>
+        {/* Topics */}
+        <TopicInput
+          topics={topics}
+          topicInput={topicInput}
+          onTopicInputChange={setTopicInput}
+          onTopicKeyPress={handleTopicKeyPress}
+          onRemoveTopic={removeTopic}
+          variant="conversation"
+        />
 
-          {/* Topics */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Topics *
-              <span className="ml-2 text-gray-400" title="Keywords that help make this discoverable">
-                <Info className="w-4 h-4 inline" />
-              </span>
-            </label>
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                onKeyPress={handleTopicKeyPress}
-                placeholder="Type a topic and press Enter (max 50 chars)"
-                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
-              />
-              {topics.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {topics.map((topic, index) => (
-                    <TopicPill
-                      key={index}
-                      topic={topic}
-                      onRemove={() => removeTopic(topic)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this conversation"
-              rows={3}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md resize-none"
-            />
-          </div>
+        {/* Description */}
+        <FormTextarea
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe this conversation"
+          rows={3}
+        />
 
           {/* Conversation-specific fields */}
           <div className="space-y-2">
@@ -388,9 +273,6 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
             </div>
           </div>
         </form>
-      </div>
-    </div>
+      </Modal>
   );
-
-  return createPortal(modalContent, document.body);
 };

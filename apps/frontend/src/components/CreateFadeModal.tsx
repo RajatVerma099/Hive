@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { apiService } from '../services/api';
 import { useApp } from '../context/AppContext';
+import { useModal } from '../hooks/useModal';
+import { useTopics } from '../hooks/useTopics';
+import { calculateDurationFromExpiry, calculateExpiryFromDuration } from '../utils/fadeUtils';
 import type { Fade } from '../types';
-import { 
-  X, 
-  Hash, 
-  Info, 
-  Sparkles,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import { Sparkles, Edit, Trash2 } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { FormInput } from './ui/FormInput';
+import { FormTextarea } from './ui/FormTextarea';
+import { TopicInput } from './forms/TopicInput';
 
 interface CreateFadeModalProps {
   isOpen: boolean;
@@ -22,24 +21,6 @@ interface CreateFadeModalProps {
 
 type ExpiryType = 'duration' | 'datetime';
 
-interface TopicPillProps {
-  topic: string;
-  onRemove: () => void;
-}
-
-const TopicPill: React.FC<TopicPillProps> = ({ topic, onRemove }) => (
-  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-full text-xs font-semibold shadow-lg border border-orange-400 hover:shadow-xl transition-all duration-300 hover:scale-105">
-    <Hash className="w-3 h-3" />
-    {topic}
-    <button
-      onClick={onRemove}
-      className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors duration-200"
-    >
-      <X className="w-3 h-3" />
-    </button>
-  </div>
-);
-
 export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({ 
   isOpen, 
   onClose,
@@ -48,38 +29,26 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
   onDeleted
 }) => {
   const { dispatch } = useApp();
+  const { renderPortal } = useModal(isOpen);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [topics, setTopics] = useState<string[]>([]);
-  const [topicInput, setTopicInput] = useState('');
 
   // Fade-specific fields
   const [expiryType, setExpiryType] = useState<ExpiryType>('duration');
   const [duration, setDuration] = useState({ hours: 1, minutes: 0 });
   const [expiryDateTime, setExpiryDateTime] = useState('');
+  
+  const {
+    topics,
+    topicInput,
+    setTopicInput,
+    handleTopicKeyPress,
+    removeTopic,
+    resetTopics
+  } = useTopics();
   
   const isEditMode = !!fade;
 
@@ -88,27 +57,15 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
     if (fade && isOpen) {
       setName(fade.name || '');
       setDescription(fade.description || '');
-      setTopics(fade.topics || []);
-      setTopicInput('');
+      resetTopics(fade.topics || []);
       
       // For edit mode, calculate remaining time from current expiry
-      const now = new Date();
-      const expiresAt = new Date(fade.expiresAt);
-      const diff = expiresAt.getTime() - now.getTime();
-      
-      if (diff > 0) {
-        // Set duration based on remaining time
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        setDuration({ hours, minutes });
-        setExpiryType('duration');
-      } else {
-        // If expired, default to 1 hour
-        setDuration({ hours: 1, minutes: 0 });
-        setExpiryType('duration');
-      }
+      const { hours, minutes } = calculateDurationFromExpiry(fade.expiresAt);
+      setDuration({ hours, minutes });
+      setExpiryType('duration');
       
       // Set datetime to the current expiry date
+      const now = new Date();
       const expiryDate = new Date(fade.expiresAt);
       const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       if (expiryDate <= maxDate) {
@@ -118,51 +75,26 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
       // Reset form when creating new
       setName('');
       setDescription('');
-      setTopics([]);
-      setTopicInput('');
+      resetTopics([]);
       setDuration({ hours: 1, minutes: 0 });
       setExpiryDateTime('');
       setExpiryType('duration');
     }
-  }, [fade, isOpen]);
-
-  const handleTopicKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && topicInput.trim()) {
-      e.preventDefault();
-      const newTopic = topicInput.trim().toLowerCase();
-      if (!topics.includes(newTopic) && newTopic.length > 0 && newTopic.length <= 50) {
-        setTopics([...topics, newTopic]);
-        setTopicInput('');
-      }
-    }
-  };
-
-  const removeTopic = (topicToRemove: string) => {
-    setTopics(topics.filter(topic => topic !== topicToRemove));
-  };
+  }, [fade, isOpen, resetTopics]);
 
   const calculateExpiryTimestamp = (): Date => {
     const now = new Date();
     
-    if (isEditMode && fade) {
-      // In edit mode, extend from the current time (or current expiry if it's in the future)
-      const currentExpiry = new Date(fade.expiresAt);
-      const baseTime = currentExpiry > now ? currentExpiry : now;
-      
-      if (expiryType === 'duration') {
-        const totalMinutes = duration.hours * 60 + duration.minutes;
-        return new Date(baseTime.getTime() + totalMinutes * 60 * 1000);
-      } else {
-        return new Date(expiryDateTime);
-      }
+    if (expiryType === 'duration') {
+      const baseTime = isEditMode && fade 
+        ? (new Date(fade.expiresAt) > now ? new Date(fade.expiresAt) : now)
+        : now;
+      const expiry = calculateExpiryFromDuration(duration.hours, duration.minutes);
+      // Adjust to start from baseTime instead of now
+      const diff = expiry.getTime() - now.getTime();
+      return new Date(baseTime.getTime() + diff);
     } else {
-      // In create mode, calculate from now
-      if (expiryType === 'duration') {
-        const totalMinutes = duration.hours * 60 + duration.minutes;
-        return new Date(now.getTime() + totalMinutes * 60 * 1000);
-      } else {
-        return new Date(expiryDateTime);
-      }
+      return new Date(expiryDateTime);
     }
   };
 
@@ -289,8 +221,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
       // Reset form when closing
       setName('');
       setDescription('');
-      setTopics([]);
-      setTopicInput('');
+      resetTopics([]);
       setDuration({ hours: 1, minutes: 0 });
       setExpiryDateTime('');
       setError(null);
@@ -298,114 +229,51 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
     }
   };
 
-  if (!isOpen || !mounted) return null;
-
-  const modalContent = (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center animate-in fade-in duration-300" 
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        margin: 0,
-        padding: '1rem'
-      }}
+  return renderPortal(
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={isEditMode ? 'Edit Fade' : 'Create New Fade'}
+      subtitle={isEditMode ? 'Update fade details and extend expiry' : 'Create a temporary conversation that will expire'}
+      icon={isEditMode ? <Edit className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
+      disabled={isSubmitting}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300" style={{ zIndex: 10000 }}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-br from-slate-50 via-orange-50 to-red-50">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-              {isEditMode ? <Edit className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {isEditMode ? 'Edit Fade' : 'Create New Fade'}
-              </h2>
-              <p className="text-gray-600 mt-0.5 text-sm">
-                {isEditMode ? 'Update fade details and extend expiry' : 'Create a temporary conversation that will expire'}
-              </p>
-            </div>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">
+            {error}
           </div>
-          <button
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
+        {/* Name */}
+        <FormInput
+          label="Fade Name *"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Enter fade name"
+          required
+        />
 
-          {/* Name */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Fade Name *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter fade name"
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
-              required
-            />
-          </div>
+        {/* Topics */}
+        <TopicInput
+          topics={topics}
+          topicInput={topicInput}
+          onTopicInputChange={setTopicInput}
+          onTopicKeyPress={handleTopicKeyPress}
+          onRemoveTopic={removeTopic}
+          variant="fade"
+        />
 
-          {/* Topics */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Topics *
-              <span className="ml-2 text-gray-400" title="Keywords that help make this discoverable">
-                <Info className="w-4 h-4 inline" />
-              </span>
-            </label>
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={topicInput}
-                onChange={(e) => setTopicInput(e.target.value)}
-                onKeyPress={handleTopicKeyPress}
-                placeholder="Type a topic and press Enter (max 50 chars)"
-                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md"
-              />
-              {topics.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {topics.map((topic, index) => (
-                    <TopicPill
-                      key={index}
-                      topic={topic}
-                      onRemove={() => removeTopic(topic)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-900">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this fade"
-              rows={3}
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-300 text-gray-900 placeholder-gray-400 text-sm shadow-sm hover:shadow-md resize-none"
-            />
-          </div>
+        {/* Description */}
+        <FormTextarea
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe this fade"
+          rows={3}
+        />
 
           {/* Expiry fields */}
           <div className="space-y-2">
@@ -544,10 +412,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
             </div>
           </div>
         </form>
-      </div>
-    </div>
+      </Modal>
   );
-
-  return createPortal(modalContent, document.body);
 };
 
