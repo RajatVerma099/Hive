@@ -8,10 +8,16 @@ import {
   Star, 
   MessageCircle, 
   Trash2,
-  ExternalLink
+  ExternalLink,
+  X
 } from 'lucide-react';
 
-export const NotebookTab: React.FC = () => {
+interface NotebookTabProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const NotebookTab: React.FC<NotebookTabProps> = ({ isOpen, onClose }) => {
   const { state, dispatch } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -100,19 +106,46 @@ export const NotebookTab: React.FC = () => {
     );
   };
 
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <BookOpen size={24} className="text-primary-600" />
-            <h2 className="text-lg font-semibold text-gray-900">My Notebook</h2>
-            <span className="bg-primary-100 text-primary-700 text-sm px-2 py-1 rounded-full">
-              {state.notebook.length} saved
-            </span>
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-4 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <BookOpen size={24} className="text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">My Notebook</h2>
+              <span className="bg-primary-100 text-primary-700 text-sm px-2 py-1 rounded-full">
+                {state.notebook.length} saved
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              title="Close"
+            >
+              <X size={20} />
+            </button>
           </div>
-        </div>
         
         {/* Search */}
         <div className="relative">
@@ -237,6 +270,7 @@ export const NotebookTab: React.FC = () => {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

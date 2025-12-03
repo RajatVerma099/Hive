@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider } from './context/AppContext';
 import { AuthProvider } from './context/AuthContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { Layout } from './components/Layout';
@@ -8,28 +8,24 @@ import { NotebookTab } from './components/NotebookTab';
 import { ProfileTab } from './components/ProfileTab';
 
 const AppContent: React.FC = () => {
-  const { activeTab } = useApp();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'chats':
-        return <ChatsView />;
-      case 'notebook':
-        return <NotebookTab />;
-      default:
-        return <ChatsView />;
-    }
-  };
+  const [isNotebookOpen, setIsNotebookOpen] = useState(false);
 
   return (
     <>
-      <Layout onOpenProfile={() => setIsProfileOpen(true)}>
-        {renderActiveTab()}
+      <Layout 
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenNotebook={() => setIsNotebookOpen(true)}
+      >
+        <ChatsView />
       </Layout>
       <ProfileTab 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
+      />
+      <NotebookTab 
+        isOpen={isNotebookOpen} 
+        onClose={() => setIsNotebookOpen(false)} 
       />
     </>
   );

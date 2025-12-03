@@ -16,10 +16,11 @@ import { useSocket } from '../hooks/useSocket';
 interface LayoutProps {
   children: React.ReactNode;
   onOpenProfile: () => void;
+  onOpenNotebook: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile }) => {
-  const { state, activeTab, setActiveTab, dispatch } = useApp();
+export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenNotebook }) => {
+  const { state, dispatch } = useApp();
   const { joinConversation, leaveConversation } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -43,7 +44,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile }) => {
           const messages = await apiService.getFadeMessages(query.id) as any[];
           dispatch({ type: 'SET_CURRENT_FADE', payload: { ...updatedFade, messages } });
           joinConversation(query.id);
-          setActiveTab('chats');
         } catch (error) {
           console.error('Error loading fade:', error);
         }
@@ -64,7 +64,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile }) => {
           const messages = await apiService.getMessages(query.id) as any[];
           dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...updatedConversation, messages } });
           joinConversation(query.id);
-          setActiveTab('chats');
         } catch (error) {
           console.error('Error loading conversation:', error);
         }
@@ -132,12 +131,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile }) => {
               
               {/* Notebook button */}
               <button
-                onClick={() => setActiveTab(activeTab === 'notebook' ? 'chats' : 'notebook')}
-                className={`p-2 rounded-full transition-colors ${
-                  activeTab === 'notebook'
-                    ? 'bg-primary-50 text-primary-700 border border-primary-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                onClick={onOpenNotebook}
+                className="p-2 rounded-full transition-colors text-gray-700 hover:bg-gray-50"
                 title="Notebook"
               >
                 <BookOpen size={20} />

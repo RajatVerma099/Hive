@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import type { AppState, User, Conversation, Fade, Notebook, TabType } from '../types';
+import type { AppState, User, Conversation, Fade, Notebook } from '../types';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from './AuthContext';
 
@@ -22,8 +22,7 @@ type AppAction =
   | { type: 'SET_CONNECTION_STATUS'; payload: boolean }
   | { type: 'SET_TYPING_USERS'; payload: Set<string> }
   | { type: 'ADD_TYPING_USER'; payload: string }
-  | { type: 'REMOVE_TYPING_USER'; payload: string }
-  | { type: 'SET_ACTIVE_TAB'; payload: TabType };
+  | { type: 'REMOVE_TYPING_USER'; payload: string };
 
 // Initial state
 const initialState: AppState = {
@@ -35,7 +34,6 @@ const initialState: AppState = {
   notebook: [],
   isConnected: false,
   typingUsers: new Set(),
-  activeTab: 'chats',
 };
 
 // Reducer
@@ -134,9 +132,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       newTypingUsers.delete(action.payload);
       return { ...state, typingUsers: newTypingUsers };
     
-    case 'SET_ACTIVE_TAB':
-      return { ...state, activeTab: action.payload };
-    
     default:
       return state;
   }
@@ -146,8 +141,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  activeTab: TabType;
-  setActiveTab: (tab: TabType) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -157,10 +150,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { isConnected, onEvent, offEvent } = useSocket();
   const { user } = useAuth();
-
-  const setActiveTab = (tab: TabType) => {
-    dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
-  };
 
   // Update connection status
   useEffect(() => {
@@ -221,7 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user, state.user]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, activeTab: state.activeTab, setActiveTab }}>
+    <AppContext.Provider value={{ state, dispatch }}>
       {children}
     </AppContext.Provider>
   );
