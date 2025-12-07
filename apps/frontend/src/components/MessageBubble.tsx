@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { formatTime } from '../utils/dateFormat';
 
 interface MessageBubbleProps {
@@ -22,17 +23,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
 
   // For sent messages, align to right; for received, align to left
-  // If pending, show with slight left indentation (shifted from right)
-  const alignmentClasses = isSent && !isPending
+  // Pending messages stay aligned to the right (no left indentation)
+  const alignmentClasses = isSent
     ? 'flex justify-end'
-    : isSent && isPending
-    ? 'flex justify-end mr-8' // Slight left indentation by adding right margin
     : 'flex justify-start';
 
   const bubbleClasses = isSent && !isPending
     ? 'bg-primary-600 text-white rounded-xl'
     : isSent && isPending
-    ? 'bg-gray-300 text-gray-800 rounded-xl opacity-70'
+    ? 'bg-transparent text-gray-700 rounded-xl border-2 border-dashed border-gray-400'
     : 'bg-gray-100 text-gray-900 rounded-xl border border-gray-200';
 
   return (
@@ -59,7 +58,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {formatTime(timestamp)}
             </span>
             {isPending && (
-              <span className="text-[10px] text-gray-500">⏱</span>
+              <Loader2 size={10} className="text-gray-400 animate-spin ml-0.5" />
             )}
           </div>
         </div>
