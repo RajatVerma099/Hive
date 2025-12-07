@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Clock, Hash, Users, Loader2, LogIn } from 'lucide-react';
 import { apiService } from '../services/api';
-import { useApp } from '../context/AppContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { addConversation } from '../store/slices/conversationsSlice';
+import { addFade } from '../store/slices/fadesSlice';
 import type { Conversation, Fade } from '../types';
 
 interface SearchOverlayProps {
@@ -16,7 +18,8 @@ interface SearchResult {
 }
 
 export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, onSearch }) => {
-  const { state, dispatch } = useApp();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -27,8 +30,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, o
 
   // Check if user is a participant
   const isParticipant = (item: Conversation | Fade): boolean => {
-    if (!state.user) return false;
-    return item.participants?.some(p => p.userId === state.user?.id) || false;
+    if (!user) return false;
+    return item.participants?.some(p => p.userId === user.id) || false;
   };
 
   // Load search history from localStorage
@@ -175,12 +178,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, o
         await apiService.joinConversation(result.item.id);
         // Fetch the updated conversation and add to user's list
         const updatedConversation = await apiService.getConversation(result.item.id) as Conversation;
-        dispatch({ type: 'ADD_CONVERSATION', payload: updatedConversation });
+        dispatch(addConversation(updatedConversation));
       } else {
         await apiService.joinFade(result.item.id);
         // Fetch the updated fade and add to user's list
         const updatedFade = await apiService.getFade(result.item.id) as Fade;
-        dispatch({ type: 'ADD_FADE', payload: updatedFade });
+        dispatch(addFade(updatedFade));
       }
       
       // Refresh search results to update join status

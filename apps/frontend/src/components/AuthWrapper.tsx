@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAppSelector } from '../store/hooks';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
 import { StatusIndicator } from './StatusIndicator';
@@ -9,7 +9,7 @@ interface AuthWrapperProps {
 }
 
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAppSelector(state => state.auth);
   const [isLoginMode, setIsLoginMode] = useState(true);
 
   if (isLoading) {

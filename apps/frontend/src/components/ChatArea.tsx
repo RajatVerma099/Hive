@@ -35,13 +35,43 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   typingUsers,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevItemIdRef = useRef<string | null>(null);
+  const prevLoadingRef = useRef<boolean>(false);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when:
+  // 1. Conversation/fade changes (item.id changes)
+  // 2. Messages finish loading (isLoadingMessages goes from true to false)
+  // 3. New messages are added (messages.length increases)
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const itemId = item?.id || null;
+    const itemChanged = itemId !== prevItemIdRef.current;
+    const loadingFinished = prevLoadingRef.current && !isLoadingMessages;
+    
+    // Update refs
+    if (itemChanged) {
+      prevItemIdRef.current = itemId;
     }
-  }, [messages.length]);
+    prevLoadingRef.current = isLoadingMessages;
+
+    // Scroll when:
+    // - Item changes (switching conversations) - instant scroll
+    // - Messages finish loading - instant scroll
+    // - New messages added (and not loading) - smooth scroll
+    if (messages.length > 0) {
+      if (itemChanged || loadingFinished) {
+        // Instant scroll when switching conversations or loading finishes
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        }, 50);
+      } else if (!isLoadingMessages) {
+        // Smooth scroll for new messages
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 0);
+      }
+    }
+  }, [messages.length, item?.id, isLoadingMessages]);
 
   // Helper function to format date label as "Sep 12, 1984"
   const formatDateLabel = (date: Date): string => {
@@ -143,7 +173,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1">
         {isLoadingMessages ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

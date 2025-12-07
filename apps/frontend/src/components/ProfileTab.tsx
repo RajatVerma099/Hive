@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { useAuth } from '../context/AuthContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { logout, setUser } from '../store/slices/authSlice';
 import type { User } from '../types';
 import { 
   User as UserIcon, 
@@ -20,13 +20,13 @@ interface ProfileTabProps {
 }
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
-  const { state, dispatch } = useApp();
-  const { logout } = useAuth();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: state.user?.name || '',
-    displayName: state.user?.displayName || '',
-    email: state.user?.email || '',
+    name: user?.name || '',
+    displayName: user?.displayName || '',
+    email: user?.email || '',
   });
 
   // Handle escape key
@@ -41,34 +41,34 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
   }, [isOpen, onClose]);
 
   const handleSave = () => {
-    if (state.user) {
+    if (user) {
       const updatedUser: User = {
-        ...state.user,
+        ...user,
         ...editForm,
         updatedAt: new Date().toISOString(),
       };
-      dispatch({ type: 'SET_USER', payload: updatedUser });
+      dispatch(setUser(updatedUser));
       setIsEditing(false);
     }
   };
 
   const handleCancel = () => {
     setEditForm({
-      name: state.user?.name || '',
-      displayName: state.user?.displayName || '',
-      email: state.user?.email || '',
+      name: user?.name || '',
+      displayName: user?.displayName || '',
+      email: user?.email || '',
     });
     setIsEditing(false);
   };
 
   const handleLogout = () => {
-    logout();
+    dispatch(logout());
     onClose();
   };
 
   if (!isOpen) return null;
 
-  if (!state.user) {
+  if (!user) {
     return (
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -139,8 +139,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
             <div className="relative flex-shrink-0">
               <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center">
                 <img
-                  src={state.user.avatar || `https://ui-avatars.com/api/?name=${state.user.name}&background=0ea5e9&color=fff&size=96`}
-                  alt={state.user.name}
+                  src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff&size=96`}
+                  alt={user.name}
                   className="w-24 h-24 rounded-full"
                 />
               </div>
@@ -155,9 +155,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
             <div className="flex-1">
               <div className="mb-4">
                 <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                  {state.user.name}
+                  {user.name}
                 </h3>
-                <p className="text-gray-500">@{state.user.displayName || state.user.name.toLowerCase().replace(/\s+/g, '')}</p>
+                <p className="text-gray-500">@{user.displayName || user.name.toLowerCase().replace(/\s+/g, '')}</p>
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
                       className="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
                   ) : (
-                    <p className="text-sm text-gray-900">{state.user.name}</p>
+                    <p className="text-sm text-gray-900">{user.name}</p>
                   )}
                 </div>
 
@@ -226,7 +226,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
                       className="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
                   ) : (
-                    <p className="text-sm text-gray-900">{state.user.displayName || 'Not set'}</p>
+                    <p className="text-sm text-gray-900">{user.displayName || 'Not set'}</p>
                   )}
                 </div>
 
@@ -242,7 +242,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
                       className="w-full px-2.5 py-1.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
                   ) : (
-                    <p className="text-sm text-gray-900">{state.user.email}</p>
+                    <p className="text-sm text-gray-900">{user.email}</p>
                   )}
                 </div>
 
@@ -251,7 +251,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ isOpen, onClose }) => {
                     Member Since
                   </label>
                   <p className="text-sm text-gray-900">
-                    {new Date(state.user.createdAt).toLocaleDateString('en-US', {
+                    {new Date(user.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'

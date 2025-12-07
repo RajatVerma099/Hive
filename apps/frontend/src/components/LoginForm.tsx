@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { loginUser } from '../store/thunks/authThunks';
+import { clearError } from '../store/slices/authSlice';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 interface LoginFormProps {
@@ -10,20 +12,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, error, clearError } = useAuth();
+  const dispatch = useAppDispatch();
+  const { isLoading, error } = useAppSelector(state => state.auth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
-    setIsLoading(true);
-
+    dispatch(clearError());
     try {
-      await login(email, password);
+      await dispatch(loginUser({ email, password })).unwrap();
     } catch (error) {
-      // Error is handled by the auth context
-    } finally {
-      setIsLoading(false);
+      // Error is handled by Redux
     }
   };
 

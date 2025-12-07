@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { signupUser } from '../store/thunks/authThunks';
+import { clearError } from '../store/slices/authSlice';
 import { Mail, Lock, Eye, EyeOff, User, UserPlus } from 'lucide-react';
 
 interface SignupFormProps {
@@ -16,8 +18,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { signup, error, clearError } = useAuth();
+  const dispatch = useAppDispatch();
+  const { isLoading, error } = useAppSelector(state => state.auth);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -28,7 +30,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
+    dispatch(clearError());
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -39,19 +41,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      await signup(
-        formData.email,
-        formData.password,
-        formData.name,
-        formData.displayName || undefined
-      );
+      await dispatch(signupUser({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        displayName: formData.displayName || undefined,
+      })).unwrap();
     } catch (error) {
-      // Error is handled by the auth context
-    } finally {
-      setIsLoading(false);
+      // Error is handled by Redux
     }
   };
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useAuth } from '../context/AuthContext';
+import { useAppSelector } from '../store/hooks';
 
 // Define SocketEvents locally to avoid import issues
 interface SocketEvents {
@@ -32,7 +32,7 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket<SocketEvents> | null>(null);
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated } = useAppSelector(state => state.auth);
 
   useEffect(() => {
     // Only connect if user is authenticated

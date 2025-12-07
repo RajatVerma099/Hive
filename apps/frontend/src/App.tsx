@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { AppProvider } from './context/AppContext';
-import { AuthProvider } from './context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { Provider } from 'react-redux';
+import { store } from './store';
+import { checkAuth } from './store/thunks/authThunks';
 import { AuthWrapper } from './components/AuthWrapper';
 import { Layout } from './components/Layout';
 import { ChatsView } from './components/ChatsView';
@@ -32,14 +33,17 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Check authentication on app load
+    store.dispatch(checkAuth());
+  }, []);
+
   return (
-    <AuthProvider>
-      <AppProvider>
-        <AuthWrapper>
-          <AppContent />
-        </AuthWrapper>
-      </AppProvider>
-    </AuthProvider>
+    <Provider store={store}>
+      <AuthWrapper>
+        <AppContent />
+      </AuthWrapper>
+    </Provider>
   );
 }
 

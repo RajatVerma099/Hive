@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { useApp } from '../context/AppContext';
+import { useAppDispatch } from '../store/hooks';
+import { addFade, updateFade, removeFade } from '../store/slices/fadesSlice';
 import { useModal } from '../hooks/useModal';
 import { useTopics } from '../hooks/useTopics';
 import { calculateDurationFromExpiry, calculateExpiryFromDuration } from '../utils/fadeUtils';
 import type { Fade } from '../types';
-import { Sparkles, Edit, Trash2 } from 'lucide-react';
+import { Sparkles, Edit, Trash2, Info } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { FormInput } from './ui/FormInput';
 import { FormTextarea } from './ui/FormTextarea';
@@ -28,7 +29,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
   fade,
   onDeleted
 }) => {
-  const { dispatch } = useApp();
+  const dispatch = useAppDispatch();
   const { renderPortal } = useModal(isOpen);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -152,7 +153,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
         });
 
         // Update the app state
-        dispatch({ type: 'UPDATE_FADE', payload: response as any });
+        dispatch(updateFade(response as any));
       } else {
         // Create new fade
         const response = await apiService.createFade({
@@ -163,7 +164,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
         });
 
         // Update the app state
-        dispatch({ type: 'ADD_FADE', payload: response as any });
+        dispatch(addFade(response as any));
 
         // Call callback to open the fade if provided
         if (onFadeCreated) {
@@ -174,7 +175,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
       // Reset form
       setName('');
       setDescription('');
-      setTopics([]);
+      resetTopics();
       setTopicInput('');
       setDuration({ hours: 1, minutes: 0 });
       setExpiryDateTime('');
@@ -201,7 +202,7 @@ export const CreateFadeModal: React.FC<CreateFadeModalProps> = ({
       await apiService.deleteFade(fade.id);
       
       // Update the app state
-      dispatch({ type: 'REMOVE_FADE', payload: fade.id });
+      dispatch(removeFade(fade.id));
       
       // Call onDeleted callback if provided
       if (onDeleted) {

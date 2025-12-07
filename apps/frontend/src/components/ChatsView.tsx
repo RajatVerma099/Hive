@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { fetchConversations, fetchMessages } from '../store/thunks/conversationsThunks';
+import { fetchFades, fetchFadeMessages } from '../store/thunks/fadesThunks';
+import { setCurrentConversation, addMessage, removeMessage } from '../store/slices/conversationsSlice';
+import { setCurrentFade, addMessage as addFadeMessage, removeMessage as removeFadeMessage } from '../store/slices/fadesSlice';
+import { setConnectionStatus, addTypingUser, removeTypingUser } from '../store/slices/uiSlice';
 import { useSocket } from '../hooks/useSocket';
 import { useConversationActions } from '../hooks/useConversationActions';
 import { useFadeActions } from '../hooks/useFadeActions';
-import { apiService } from '../services/api';
 import { CreateConversationModal } from './CreateConversationModal';
 import { CreateFadeModal } from './CreateFadeModal';
 import { DetailsPane } from './DetailsPane';
@@ -14,76 +18,70 @@ import { filterConversations, filterFades } from '../utils/filterUtils';
 import type { Conversation, Message, Fade, FadeMessage } from '../types';
 
 export const ChatsView: React.FC = () => {
-  const { state, dispatch } = useApp();
-  const { joinConversation, leaveConversation, sendMessage, onEvent, offEvent } = useSocket();
+  const dispatch = useAppDispatch();
+  const conversations = useAppSelector((state) => state.conversations);
+  const fades = useAppSelector((state) => state.fades);
+  const auth = useAppSelector((state) => state.auth);
+  const ui = useAppSelector((state) => state.ui);
+  
+  // Derived state
+  const state = {
+    currentConversation: conversations.currentConversation,
+    currentFade: fades.currentFade,
+    conversations: conversations.conversations,
+    fades: fades.fades,
+    user: auth.user,
+    isConnected: ui.isConnected,
+    typingUsers: new Set(ui.typingUsers),
+  };
+  const { joinConversation, leaveConversation, sendMessage, onEvent, offEvent, isConnected } = useSocket();
+  
+  // Update connection status in Redux
+  useEffect(() => {
+    dispatch(setConnectionStatus(isConnected));
+  }, [isConnected, dispatch]);
   const [searchQuery, setSearchQuery] = useState('');
   const [fadeSearchQuery, setFadeSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingFades, setIsLoadingFades] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [fadeError, setFadeError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateFadeModal, setShowCreateFadeModal] = useState(false);
   const [editingConversation, setEditingConversation] = useState<Conversation | null>(null);
   const [editingFade, setEditingFade] = useState<Fade | null>(null);
   const [pendingMessages, setPendingMessages] = useState<Map<string, Message>>(new Map());
+  const [pendingFadeMessages, setPendingFadeMessages] = useState<Map<string, FadeMessage>>(new Map());
   const pendingMessageIdRef = useRef(0);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const isLoadingMessages = conversations.isLoadingMessages || fades.isLoadingMessages;
   const [isConversationsListCollapsed, setIsConversationsListCollapsed] = useState(false);
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [isFadesSectionCollapsed, setIsFadesSectionCollapsed] = useState(false);
   const [isConversationsSectionCollapsed, setIsConversationsSectionCollapsed] = useState(false);
 
-  // Load conversations from API
+  // Load conversations from API (with caching)
   useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const conversations = await apiService.getConversations() as Conversation[];
-        dispatch({ type: 'SET_CONVERSATIONS', payload: conversations });
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        setError('Failed to load conversations');
-        // Set empty array on error to show proper empty state
-        dispatch({ type: 'SET_CONVERSATIONS', payload: [] });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadConversations();
+    dispatch(fetchConversations());
   }, [dispatch]);
 
-  // Load fades from API
+  // Load fades from API (with caching)
   useEffect(() => {
-    const loadFades = async () => {
-      try {
-        setIsLoadingFades(true);
-        setFadeError(null);
-        const fades = await apiService.getFades() as Fade[];
-        dispatch({ type: 'SET_FADES', payload: fades });
-      } catch (error) {
-        console.error('Error loading fades:', error);
-        setFadeError('Failed to load fades');
-        dispatch({ type: 'SET_FADES', payload: [] });
-      } finally {
-        setIsLoadingFades(false);
-      }
-    };
-    
-    loadFades();
+    dispatch(fetchFades());
   }, [dispatch]);
+  
+  // Update loading states from Redux
+  const isLoading = conversations.isLoading;
+  const isLoadingFades = fades.isLoading;
+  const error = conversations.error;
+  const fadeError = fades.error;
 
   // Use refs to access latest state in socket handler
   const conversationRef = useRef(state.currentConversation);
+  const fadeRef = useRef(state.currentFade);
   const userRef = useRef(state.user);
   
   useEffect(() => {
     conversationRef.current = state.currentConversation;
+    fadeRef.current = state.currentFade;
     userRef.current = state.user;
-  }, [state.currentConversation, state.user]);
+  }, [state.currentConversation, state.currentFade, state.user]);
 
   // Socket event handlers
   useEffect(() => {
@@ -107,50 +105,41 @@ export const ChatsView: React.FC = () => {
             
             if (pendingEntry) {
               const tempId = pendingEntry[0];
-              
-              // Replace pending message in conversation with confirmed one
-              // Access current conversation from ref to ensure we have latest
-              const conversationToUpdate = conversationRef.current;
-              if (conversationToUpdate && conversationToUpdate.id === message.conversationId) {
-                const updatedMessages = (conversationToUpdate.messages || []).map((m: Message) => 
-                  m.id === tempId ? message : m
-                );
-                
-                const updatedConversation = {
-                  ...conversationToUpdate,
-                  messages: updatedMessages,
-                };
-                dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
-              }
-              
-              // Remove from pending
+              // Remove optimistic message from Redux
+              dispatch(removeMessage({ 
+                conversationId: message.conversationId, 
+                messageId: tempId 
+              }));
+              // Remove from pending Map
               const newMap = new Map(currentPending);
               newMap.delete(tempId);
+              // Add confirmed message to Redux
+              dispatch(addMessage(message));
               return newMap;
             }
           }
 
           // Not a pending message - add it normally
-          const conversationToUpdate = conversationRef.current;
-          if (conversationToUpdate && conversationToUpdate.id === message.conversationId) {
-            // Check if message already exists (to avoid duplicates)
-            const existingMessage = conversationToUpdate.messages?.find((m: Message) => m.id === message.id);
-            if (!existingMessage) {
-              const updatedConversation = {
-                ...conversationToUpdate,
-                messages: [...(conversationToUpdate.messages || []), message],
-              };
-              dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
-            }
-          }
-          
+          dispatch(addMessage(message));
           return currentPending;
         });
       }
     };
 
+    const handleUserTyping = (data: { userId: string; isTyping: boolean }) => {
+      if (data.isTyping) {
+        dispatch(addTypingUser(data.userId));
+      } else {
+        dispatch(removeTypingUser(data.userId));
+      }
+    };
+
     onEvent('new-message', handleNewMessage);
-    return () => offEvent('new-message', handleNewMessage);
+    onEvent('user-typing', handleUserTyping);
+    return () => {
+      offEvent('new-message', handleNewMessage);
+      offEvent('user-typing', handleUserTyping);
+    };
   }, [onEvent, offEvent, dispatch]);
 
   const handleJoinConversation = async (conversation: Conversation) => {
@@ -166,33 +155,17 @@ export const ChatsView: React.FC = () => {
       
       // Clear current fade since we're switching to a conversation
       if (state.currentFade) {
-        dispatch({ type: 'SET_CURRENT_FADE', payload: null });
+        dispatch(setCurrentFade(null));
       }
       
-      // Set loading state BEFORE setting conversation
-      setIsLoadingMessages(true);
-      
-      // Set conversation with empty messages to show loading state
-      dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...conversation, messages: [] } });
+      // Set conversation (messages will be loaded from cache or fetched)
+      dispatch(setCurrentConversation(conversation));
       
       // Join new conversation
       joinConversation(conversation.id);
       
-      // Fetch all messages for this conversation
-      try {
-        const messages = await apiService.getMessages(conversation.id) as Message[];
-        const conversationWithMessages = {
-          ...conversation,
-          messages: messages
-        };
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversationWithMessages });
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-        // Still set the conversation even if messages fail to load
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...conversation, messages: [] } });
-      } finally {
-        setIsLoadingMessages(false);
-      }
+      // Fetch messages (thunk handles caching)
+      dispatch(fetchMessages(conversation.id));
     }
   };
   
@@ -219,15 +192,14 @@ export const ChatsView: React.FC = () => {
     // Add to pending messages
     setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
 
-    // Add optimistic message to conversation
-    const updatedConversation = {
-      ...state.currentConversation,
-      messages: [...(state.currentConversation.messages || []), optimisticMessage],
-    };
-    dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: updatedConversation });
+    // Add optimistic message to Redux (will be replaced when confirmed)
+    dispatch(addMessage(optimisticMessage));
     
     // Update ref immediately so socket handler has latest state
-    conversationRef.current = updatedConversation;
+    conversationRef.current = {
+      ...state.currentConversation!,
+      messages: [...(conversations.messages[state.currentConversation.id] || []), optimisticMessage],
+    };
 
     // Send message via socket
     sendMessage({
@@ -273,7 +245,7 @@ export const ChatsView: React.FC = () => {
   const handleJoinFade = async (fade: Fade) => {
     if (state.currentFade?.id !== fade.id) {
       // Clear pending messages when switching fades
-      setPendingMessages(new Map());
+      setPendingFadeMessages(new Map());
       setShowDetailsPanel(false);
       
       // Leave current fade if switching
@@ -283,34 +255,18 @@ export const ChatsView: React.FC = () => {
       
       // Clear current conversation since we're switching to a fade
       if (state.currentConversation) {
-        dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
+        dispatch(setCurrentConversation(null));
         leaveConversation(state.currentConversation.id);
       }
       
-      // Set loading state BEFORE setting fade
-      setIsLoadingMessages(true);
-      
-      // Set fade with empty messages to show loading state
-      dispatch({ type: 'SET_CURRENT_FADE', payload: { ...fade, messages: [] } });
+      // Set fade (messages will be loaded from cache or fetched)
+      dispatch(setCurrentFade(fade));
       
       // Join new fade (using conversation socket for now)
       joinConversation(fade.id);
       
-      // Fetch all messages for this fade
-      try {
-        const messages = await apiService.getFadeMessages(fade.id) as FadeMessage[];
-        const fadeWithMessages = {
-          ...fade,
-          messages: messages
-        };
-        dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
-      } catch (error) {
-        console.error('Error fetching fade messages:', error);
-        // Still set the fade even if messages fail to load
-        dispatch({ type: 'SET_CURRENT_FADE', payload: { ...fade, messages: [] } });
-      } finally {
-        setIsLoadingMessages(false);
-      }
+      // Fetch messages (thunk handles caching)
+      dispatch(fetchFadeMessages(fade.id));
     }
   };
 
@@ -346,8 +302,20 @@ export const ChatsView: React.FC = () => {
   const { deleteConversation, leaveConversationAction, shareConversation } = useConversationActions();
   const { deleteFade, leaveFade, shareFade } = useFadeActions();
 
-  const filteredConversations = filterConversations(state.conversations, searchQuery);
-  const filteredFades = filterFades(state.fades, fadeSearchQuery);
+  const filteredConversations = filterConversations(conversations.conversations, searchQuery);
+  const filteredFades = filterFades(fades.fades, fadeSearchQuery);
+  
+  // Get messages for current conversation/fade from Redux
+  const currentConversationMessages = state.currentConversation 
+    ? conversations.messages[state.currentConversation.id] || []
+    : [];
+  const currentFadeMessages = state.currentFade
+    ? fades.messages[state.currentFade.id] || []
+    : [];
+  
+  // Get pending message IDs for ChatArea
+  const pendingConversationMessageIds = new Set(pendingMessages.keys());
+  const pendingFadeMessageIds = new Set(pendingFadeMessages.keys());
 
   return (
     <div className="flex h-full relative px-4">
@@ -636,10 +604,10 @@ export const ChatsView: React.FC = () => {
           <>
             <ChatArea
               item={state.currentConversation}
-              messages={state.currentConversation?.messages || []}
+              messages={currentConversationMessages}
               currentUser={state.user}
               isLoadingMessages={isLoadingMessages}
-              pendingMessages={new Set(Array.from(pendingMessages.keys()))}
+              pendingMessages={pendingConversationMessageIds}
               newMessage={newMessage}
               onMessageChange={setNewMessage}
               onSendMessage={handleSendMessage}
@@ -664,10 +632,10 @@ export const ChatsView: React.FC = () => {
           <>
             <ChatArea
               item={state.currentFade}
-              messages={state.currentFade?.messages || []}
+              messages={currentFadeMessages}
               currentUser={state.user}
               isLoadingMessages={isLoadingMessages}
-              pendingMessages={new Set()}
+              pendingMessages={pendingFadeMessageIds}
               newMessage={newMessage}
               onMessageChange={setNewMessage}
               onSendMessage={async (e) => {
@@ -675,16 +643,60 @@ export const ChatsView: React.FC = () => {
                 if (!newMessage.trim() || !state.currentFade || !state.user) return;
 
                 const messageContent = newMessage.trim();
+                
+                // Create optimistic message
+                const tempId = `pending-fade-${Date.now()}-${pendingMessageIdRef.current++}`;
+                const optimisticMessage: FadeMessage = {
+                  id: tempId,
+                  content: messageContent,
+                  fadeId: state.currentFade.id,
+                  userId: state.user.id,
+                  isPinned: false,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  user: state.user,
+                };
+
+                // Add to pending fade messages
+                setPendingFadeMessages(prev => new Map(prev).set(tempId, optimisticMessage));
+
+                // Add optimistic message to Redux (will be replaced when confirmed)
+                dispatch(addFadeMessage(optimisticMessage));
+
+                // Clear input immediately
+                setNewMessage('');
+
                 try {
+                  const { apiService } = await import('../services/api');
                   const message = await apiService.sendFadeMessage(state.currentFade.id, messageContent) as FadeMessage;
-                  const fadeWithMessages = {
-                    ...state.currentFade,
-                    messages: [...(state.currentFade.messages || []), message],
-                  };
-                  dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
-                  setNewMessage('');
+                  
+                  // Remove optimistic message from Redux
+                  dispatch(removeFadeMessage({ 
+                    fadeId: message.fadeId, 
+                    messageId: tempId 
+                  }));
+                  
+                  // Remove from pending Map
+                  setPendingFadeMessages(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(tempId);
+                    return newMap;
+                  });
+                  
+                  // Add confirmed message to Redux
+                  dispatch(addFadeMessage(message));
                 } catch (error) {
                   console.error('Error sending fade message:', error);
+                  // Remove optimistic message on error
+                  dispatch(removeFadeMessage({ 
+                    fadeId: state.currentFade.id, 
+                    messageId: tempId 
+                  }));
+                  setPendingFadeMessages(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(tempId);
+                    return newMap;
+                  });
                 }
               }}
               onInfoClick={() => setShowDetailsPanel(!showDetailsPanel)}
@@ -725,21 +737,8 @@ export const ChatsView: React.FC = () => {
         }}
         conversation={editingConversation}
         onDeleted={() => {
-          // Reload conversations
-          const loadConversations = async () => {
-            try {
-              setIsLoading(true);
-              setError(null);
-              const conversations = await apiService.getConversations() as Conversation[];
-              dispatch({ type: 'SET_CONVERSATIONS', payload: conversations });
-            } catch (error) {
-              console.error('Error refreshing conversations:', error);
-              setError('Failed to refresh conversations');
-            } finally {
-              setIsLoading(false);
-            }
-          };
-          loadConversations();
+          // Reload conversations (thunk handles caching)
+          dispatch(fetchConversations());
         }}
       />
 
@@ -753,36 +752,14 @@ export const ChatsView: React.FC = () => {
         fade={editingFade}
         onFadeCreated={async (fade: Fade) => {
           if (!editingFade) {
-            try {
-              const messages = await apiService.getFadeMessages(fade.id) as FadeMessage[];
-              const fadeWithMessages = {
-                ...fade,
-                messages: messages
-              };
-              dispatch({ type: 'SET_CURRENT_FADE', payload: fadeWithMessages });
-              joinConversation(fade.id);
-            } catch (error) {
-              console.error('Error loading fade messages:', error);
-              dispatch({ type: 'SET_CURRENT_FADE', payload: fade });
-              joinConversation(fade.id);
-            }
+            dispatch(setCurrentFade(fade));
+            dispatch(fetchFadeMessages(fade.id));
+            joinConversation(fade.id);
           }
         }}
         onDeleted={() => {
-          const loadFades = async () => {
-            try {
-              setIsLoadingFades(true);
-              setFadeError(null);
-              const fades = await apiService.getFades() as Fade[];
-              dispatch({ type: 'SET_FADES', payload: fades });
-            } catch (error) {
-              console.error('Error refreshing fades:', error);
-              setFadeError('Failed to refresh fades');
-            } finally {
-              setIsLoadingFades(false);
-            }
-          };
-          loadFades();
+          // Reload fades (thunk handles caching)
+          dispatch(fetchFades());
         }}
       />
     </div>

@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setCurrentConversation } from '../store/slices/conversationsSlice';
+import { setCurrentFade as setFadeCurrent } from '../store/slices/fadesSlice';
+import { fetchConversation, fetchMessages } from '../store/thunks/conversationsThunks';
+import { fetchFade, fetchFadeMessages } from '../store/thunks/fadesThunks';
 import type { Conversation, Fade } from '../types';
 import { 
   MessageCircle, 
@@ -10,7 +14,6 @@ import {
   Moon
 } from 'lucide-react';
 import { SearchOverlay } from './SearchOverlay';
-import { apiService } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 
 interface LayoutProps {
@@ -20,7 +23,11 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenNotebook }) => {
-  const { state, dispatch } = useApp();
+  const dispatch = useAppDispatch();
+  const currentConversation = useAppSelector((state) => state.conversations.currentConversation);
+  const currentFade = useAppSelector((state) => state.fades.currentFade);
+  const isConnected = useAppSelector((state) => state.ui.isConnected);
+  const user = useAppSelector((state) => state.auth.user);
   const { joinConversation, leaveConversation } = useSocket();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -31,18 +38,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenN
         // It's a fade
         try {
           // Leave current conversation/fade if switching
-          if (state.currentConversation) {
-            leaveConversation(state.currentConversation.id);
-            dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: null });
+          if (currentConversation) {
+            leaveConversation(currentConversation.id);
+            dispatch(setCurrentConversation(null));
           }
-          if (state.currentFade) {
-            leaveConversation(state.currentFade.id);
+          if (currentFade) {
+            leaveConversation(currentFade.id);
           }
           
-          // Fetch fresh fade data to ensure we have latest participants
-          const updatedFade = await apiService.getFade(query.id) as Fade;
-          const messages = await apiService.getFadeMessages(query.id) as any[];
-          dispatch({ type: 'SET_CURRENT_FADE', payload: { ...updatedFade, messages } });
+          // Fetch fade (thunk handles caching)
+          await dispatch(fetchFade(query.id));
+          await dispatch(fetchFadeMessages(query.id));
+          dispatch(setFadeCurrent(query));
           joinConversation(query.id);
         } catch (error) {
           console.error('Error loading fade:', error);
@@ -51,18 +58,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenN
         // It's a conversation
         try {
           // Leave current conversation/fade if switching
-          if (state.currentFade) {
-            leaveConversation(state.currentFade.id);
-            dispatch({ type: 'SET_CURRENT_FADE', payload: null });
+          if (currentFade) {
+            leaveConversation(currentFade.id);
+            dispatch(setFadeCurrent(null));
           }
-          if (state.currentConversation) {
-            leaveConversation(state.currentConversation.id);
+          if (currentConversation) {
+            leaveConversation(currentConversation.id);
           }
           
-          // Fetch fresh conversation data to ensure we have latest participants
-          const updatedConversation = await apiService.getConversation(query.id) as Conversation;
-          const messages = await apiService.getMessages(query.id) as any[];
-          dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: { ...updatedConversation, messages } });
+          // Fetch conversation (thunk handles caching)
+          await dispatch(fetchConversation(query.id));
+          await dispatch(fetchMessages(query.id));
+          dispatch(setCurrentConversation(query));
           joinConversation(query.id);
         } catch (error) {
           console.error('Error loading conversation:', error);
@@ -106,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenN
             <div className="flex items-center space-x-3">
               {/* Connection status */}
               <div className="flex items-center space-x-1 text-sm rounded-xl px-3 py-2 bg-gray-50">
-                {state.isConnected ? (
+                {isConnected ? (
                   <>
                     <Wifi className="w-4 h-4 text-green-500" />
                     <span className="font-medium text-green-600">Connected</span>
@@ -140,15 +147,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, onOpenProfile, onOpenN
               </button>
               
               {/* User avatar - clickable for profile */}
-              {state.user && (
+              {user && (
                 <button
                   onClick={onOpenProfile}
                   className="p-1 rounded-full transition-colors hover:bg-gray-50"
                   title="Profile"
                 >
                   <img
-                    src={state.user.avatar || `https://ui-avatars.com/api/?name=${state.user.name}&background=0ea5e9&color=fff`}
-                    alt={state.user.name}
+                    src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0ea5e9&color=fff`}
+                    alt={user.name}
                     className="w-8 h-8 rounded-full"
                   />
                 </button>

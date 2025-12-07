@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { useApp } from '../context/AppContext';
+import { useAppDispatch } from '../store/hooks';
+import { addConversation, updateConversation, removeConversation } from '../store/slices/conversationsSlice';
 import { useModal } from '../hooks/useModal';
 import { useTopics } from '../hooks/useTopics';
 import type { Conversation } from '../types';
@@ -23,7 +24,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
   conversation,
   onDeleted
 }) => {
-  const { dispatch } = useApp();
+  const dispatch = useAppDispatch();
   const { renderPortal } = useModal(isOpen);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -86,7 +87,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
         });
 
         // Update the app state
-        dispatch({ type: 'UPDATE_CONVERSATION', payload: response as any });
+        dispatch(updateConversation(response as any));
       } else {
         // Create new conversation
         const response = await apiService.createConversation({
@@ -98,7 +99,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
         });
 
         // Update the app state
-        dispatch({ type: 'ADD_CONVERSATION', payload: response as any });
+        dispatch(addConversation(response as any));
       }
 
       // Reset form
@@ -129,7 +130,7 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       await apiService.deleteConversation(conversation.id);
       
       // Update the app state
-      dispatch({ type: 'REMOVE_CONVERSATION', payload: conversation.id });
+      dispatch(removeConversation(conversation.id));
       
       // Call onDeleted callback if provided
       if (onDeleted) {
